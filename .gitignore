@@ -1,0 +1,14 @@
+/.DS_Store
+.venv
+__pycache__
+.vscode
+
+# Temporary files
+tmp
+models
+logs
+datasets/.DS_Store
+
+# My notes
+datasets_description.txt
+notes.txt
