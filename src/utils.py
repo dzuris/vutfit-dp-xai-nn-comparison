@@ -15,6 +15,7 @@ from exceptions import (
 TMP_FOLDER = 'tmp'
 
 # Configurations
+MODELS_FOLDER = "models"
 MODELS = ['NeuralNetwork', 'GeneticProgramming']
 TASK_TYPES = ['regression', 'classification']
 LOSS_FUNCTIONS_REGRESSION = {

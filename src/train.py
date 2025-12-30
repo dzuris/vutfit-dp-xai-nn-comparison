@@ -4,7 +4,7 @@ This module trains and saves the model.
 """
 import time
 import pandas as pd
-from models import BaseModel, get_model
+from i_model import get_model, BaseModel
 from logging_handler import LoggerHandler
 
 

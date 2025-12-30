@@ -3,13 +3,13 @@
 This module loads the model and explain it.
 """
 import argparse
+from i_model import get_model
 from utils import load_config
 from preprocess import load_and_preprocess_data
-from models import get_model
 from logging_handler import LoggerHandler
 from exceptions import UnsupportedXaiMethodException
 
-XAI_METHODS = ['shap', 'lime']
+XAI_METHODS = ['shap', 'lime', 'visualize']
 
 def main():
     """Main program function.
@@ -48,12 +48,12 @@ def main():
     selected_method_xai = config['xai']['method']
 
     try:
-        if selected_method_xai == XAI_METHODS[0]:
-            # SHAP
+        if selected_method_xai == XAI_METHODS[0]: # shap
             model.explain_shap()
-        elif selected_method_xai == XAI_METHODS[1]:
-            # LIME
+        elif selected_method_xai == XAI_METHODS[1]: # lime
             _ = model.explain_lime(config['xai']['lime']['index_instance_to_explain'])
+        elif selected_method_xai == XAI_METHODS[2]: # visualize
+            model.visualize_model()
         else:
             raise UnsupportedXaiMethodException(
                 f"Unknown XAI method selection: {selected_method_xai}."

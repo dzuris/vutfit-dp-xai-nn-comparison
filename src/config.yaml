@@ -34,8 +34,8 @@ model_training:
     elitism: False
 
 xai:
-  # Method options for both nn and gp: 'shap', 'lime'
-  method: "lime"
+  # Method options for both nn and gp: 'shap', 'lime', 'visualize'
+  method: "visualize"
   lime:
     index_instance_to_explain: [0, 1] # List of indices in data to explain
 

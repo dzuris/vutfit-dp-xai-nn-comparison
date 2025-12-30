@@ -53,6 +53,26 @@ Install `requirements.txt`:
 pip install -r requirements.txt
 ```
 
+'graphviz' package neeeds to be installed manually:
+
+On MacOS:
+```bash
+brew install graphviz
+```
+
+On Ubuntu/Linux:
+```bash
+sudo apt-get install graphviz
+```
+
+On Windows:
+- Download the Graphviz installer from the official website: [Graphviz Download](https://graphviz.org/download/).
+
+Check if Graphviz was successfully installed:
+```bash
+dot -V
+```
+
 ### Running program
 
 Edit `config.yaml` file:
