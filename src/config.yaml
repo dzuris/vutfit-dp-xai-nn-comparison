@@ -21,7 +21,7 @@ model_training:
     activation_function: relu
     learning_rate: 0.001
     optimizer: adam   # Options: 'adam', 'sgd'
-    epochs: 500
+    epochs: 200
     batch_size: 32
     dropout_rate: 0.2
     print_train_logs: 1 # 0 - not printing, 1 - printing
@@ -32,6 +32,12 @@ model_training:
     crossover_pb: 0.5
     mutation_pb: 0.2
     elitism: False
+
+xai:
+  # Method options for both nn and gp: 'shap', 'lime'
+  method: "lime"
+  lime:
+    index_instance_to_explain: [0, 1] # List of indices in data to explain
 
 logging:
   format: '%(name)s - %(levelname)s - %(message)s'
