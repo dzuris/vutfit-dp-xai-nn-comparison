@@ -16,7 +16,7 @@ LOGS_DIR:=logs
 # Targets
 .PHONY: all xai clean
 
-all: src/main.py
+model: src/main.py
 	$(INTERPRETER) $< --config $(CONFIG_FILE)
 
 xai: src/xai.py
