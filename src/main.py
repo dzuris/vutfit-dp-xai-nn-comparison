@@ -19,7 +19,7 @@ from exceptions import (
 
 def validate_configuration(config: dict):
     """Config validation.
-    
+
     The function validates configuration settings before training and raises exceptions
     if config is not valid.
 
@@ -68,7 +68,7 @@ def validate_configuration(config: dict):
 
 
 def main():
-    """Main program function.
+    """Main program function for generating the model.
     
     Runs loading config, validating config, preprocessing, training and obtaining loss values.
     """
