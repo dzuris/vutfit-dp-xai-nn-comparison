@@ -31,6 +31,20 @@ source .venv/bin/activate
 deactivate
 ```
 
+#### Removing Virtual Environment:
+
+Navigate in terminal to directory where your Virtual Environment is located in, and run:
+
+On Mac:
+```bash
+rm -rf .venv
+```
+
+On Windows:
+```bash
+rmdir /s /q .venv
+```
+
 ### Installing dependencies
 
 Install `requirements.txt`:
