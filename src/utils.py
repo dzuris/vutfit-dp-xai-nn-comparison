@@ -11,6 +11,9 @@ from exceptions import (
     UnsupportedLossException,
     UnsupportedTaskTypeException)
 
+# Config folders
+TMP_FOLDER = 'tmp'
+
 # Configurations
 MODELS = ['NeuralNetwork', 'GeneticProgramming']
 TASK_TYPES = ['regression', 'classification']
@@ -41,22 +44,6 @@ def load_config(config_path: str) -> dict:
 
     with open(config_path, "r", encoding='utf-8') as file:
         return yaml.safe_load(file)
-
-
-def create_folder(filepath: str):
-    """Creates directories to file on file path if folders do not exist.
-
-    Args:
-        filepath: Path to a file.
-
-    Returns:
-        Directory in which the file is located.
-    """
-    directory_path = os.path.dirname(filepath)
-    if not os.path.exists(directory_path):
-        os.makedirs(directory_path)
-
-    return directory_path
 
 
 def calculate_loss(y_test: dict, y_pred: dict, loss_func: str, task_type: str) -> float:

@@ -8,3 +8,4 @@ tensorflow==2.18.0  # This includes Keras
 deap==1.4.2
 xlrd==2.0.1
 matplotlib==3.10.1
+lime==0.2.0.1

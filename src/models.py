@@ -12,6 +12,7 @@ import shap
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
+from lime.lime_tabular import LimeTabularExplainer
 
 # Neural Network imports
 import tensorflow as tf
@@ -24,7 +25,7 @@ import numpy as np
 from deap import base, creator, tools, gp
 
 from logging_handler import LoggerHandler
-from utils import calculate_loss, TASK_TYPES, MODELS
+from utils import calculate_loss, TASK_TYPES, MODELS, TMP_FOLDER
 from exceptions import UnsupportedModelException
 
 
@@ -44,8 +45,10 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         target_columns (list[str]): List of target columns.
         selected_loss (str): Selected loss function (mse, mae for regression;
             accuracy, log_loss for classification)
-        target_unique_classes (ndarray[str]): For classification number of target classes
+        target_unique_classes (ndarray): Array containing the
+            unique class labels for classification.
         logger (LoggerHandler): Logging handler.
+        feature_names (list[str]): List of feature names.
         X_train (pd.DataFrame): Training features.
         X_test (pd.DataFrame): Testing features.
         y_train (pd.DataFrame): Training targets.
@@ -65,6 +68,8 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
             Calculates loss function value on test data.
         explain_shap():
             Explain the model using SHAP values.
+        explain_lime() -> list(explanations):
+            Explain the model using LIME algorithm and returns explanation for each instance.
     """
     def __init__( # pylint: disable=too-many-positional-arguments, too-many-arguments
             self,
@@ -93,8 +98,7 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         """
         # Set file where to store/load from model
         self.file_path = os.path.join(folder_path, f"{model_filename}")
-        if not os.path.exists(folder_path):
-            os.makedirs(folder_path)
+        os.makedirs(folder_path, exist_ok=True) # Ensure that 'folder_path' folder exists
 
         # Set task type
         self.task_type = config['data']['type']
@@ -116,6 +120,9 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
         # Set logger
         self.logger = logger
+
+        # Set feature names
+        self.feature_names = X.columns.tolist()
 
         # Set datasets
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
@@ -195,6 +202,11 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         """
         raise NotImplementedError("The method 'explain_shap' must be implemented in a subclass.")
 
+    @abstractmethod
+    def explain_lime(self, instances):
+        "Explain model using LIME method."
+        raise NotImplementedError("The method 'explain_lime' must be implemented in a subclass.")
+
 
 class NeuralNetworkModel(BaseModel):
     """Neural Network Model.
@@ -215,8 +227,10 @@ class NeuralNetworkModel(BaseModel):
             Creates and train Neural Network model on provided data, with config settings.
         predict():
             Predicts test data.
-        get_explainer():
-            Explains model.
+        explain_shap():
+            Explains NN model using SHAP method.
+        explain_lime() -> list(lime.explanation.Explanation):
+            Explain the model using LIME algorithm and returns explanations for each instance.
     """
     def __init__( # pylint: disable=too-many-positional-arguments, too-many-arguments
             self,
@@ -380,6 +394,63 @@ class NeuralNetworkModel(BaseModel):
             plt.tight_layout()
             plt.show()
 
+    def explain_lime(self, instances):
+        """
+        Explain the Neural Network model using LIME for the given instances.
+
+        Args:
+            instances (pd.DataFrame or np.ndarray): Instances to explain.
+
+        Raises:
+            ValueError: If not trained model exists for any target variable.
+
+        Returns:
+            list: A list of LIME explanation objects for each instance.
+        """
+        # Determine mode, class names and labels based on task type
+        if self.task_type == TASK_TYPES[1]: # Classification
+            mode = "classification"
+            class_names = [str(cls) for cls in self.y_train.iloc[:, 0].unique()]
+            labels = list(range(len(class_names)))
+        elif self.task_type == TASK_TYPES[0]: # Regression
+            mode = "regression"
+            class_names = None
+            labels = None
+        else:
+            raise ValueError(f"Unsupported task type: {self.task_type}")
+
+        # Initialize the LIME explainer
+        explainer = LimeTabularExplainer(
+            training_data=self.X_train.values,
+            feature_names=self.X_train.columns.tolist(),
+            class_names=class_names,
+            mode=mode,
+            random_state=42
+        )
+
+        # Ensure the output directory exists
+        os.makedirs(TMP_FOLDER, exist_ok=True)
+
+        # Explain each instance and save the explanation to a file
+        explanations = []
+        for index in range(len(instances)):
+            # Generate explanation for the given instance
+            data_row = self.X_train.iloc[index].values
+            explanation = explainer.explain_instance(
+                data_row=data_row,
+                predict_fn=self.model.predict,
+                labels=labels,
+                num_features=self.X_train.shape[1]
+            )
+            explanations.append(explanation)
+
+            # Save the explanation to a file
+            explanation_file = os.path.join(TMP_FOLDER, f"lime_explanation_nn_{index}.html")
+            explanation.save_to_file(explanation_file)
+            print(f"Explanation for instance {index} saved to {explanation_file}")
+
+        return explanations
+
 
 class GeneticProgrammingModel(BaseModel):
     """Genetic Programming Model.
@@ -409,8 +480,10 @@ class GeneticProgrammingModel(BaseModel):
             Creates and train Neural Network model.
         predict() -> dict:
             Predicts test data.
-        get_explainer(X_train: pd.DataFrame):
-            Explain model on training data.
+        explain_shap():
+            Explain model using SHAP method.
+        explain_lime() -> list(lime.explanation.Explanation):
+            Explain the model using LIME algorithm and returns explanations for each instance.
     """
     def __init__( # pylint: disable=too-many-positional-arguments, too-many-arguments
             self,
@@ -680,10 +753,90 @@ class GeneticProgrammingModel(BaseModel):
                               feature_names=self.X_train.columns,
                               max_display=max_display)
 
-        # def model_wrapper():
-        #     return self.predict()
-        # explainer = shap.Explainer(model_wrapper)
-        # return explainer
+    def explain_lime(self, instances):
+        """
+        Explain the Genetic Programming model using LIME for the given instances.
+
+        Args:
+            instances (pd.DataFrame or np.ndarray): Instances to explain.
+
+        Raises:
+            ValueError: If not trained model exists for any target variable.
+
+        Returns:
+            list: A list of LIME explanation objects for each instance.
+        """
+
+        # Ensure the model has been trained
+        if not self.best_individuals:
+            raise ValueError("No trained model exists. Train the model before explaining.")
+
+        # Define a prediction function for LIME
+        def predict_fn(X):
+            predictions = []
+            for target_name in self.target_columns:
+                if target_name not in self.best_individuals:
+                    raise ValueError(f"No trained model for target `{target_name}`")
+                best_ind = self.best_individuals[target_name]
+                if hasattr(self.toolbox, "compile"):
+                    func = self.toolbox.compile(expr=best_ind) # Compile the GP tree
+                else:
+                    raise AttributeError("Toolbox does not have a 'compile' method")
+                pred_values = np.array([func(*x) for x in X])
+
+                # For classification, ensure probabilities are returned
+                if self.task_type == TASK_TYPES[1]: # Classification
+                    unique_classes = self.target_unique_classes
+                    probabilities = np.zeros((len(pred_values), len(unique_classes)))
+                    for i, p in enumerate(pred_values):
+                        # Assign probabilities based on the closest class
+                        closest_class_idx = np.abs(unique_classes - p).argmin()
+                        probabilities[i, closest_class_idx] = 1.0
+                    predictions.append(probabilities)
+                else:
+                    predictions.append(pred_values)
+
+            if self.task_type == TASK_TYPES[0]: # Regression
+                return np.column_stack(predictions)
+
+            # Classification
+            return predictions[0]
+
+        # Initiliaze the LIME explainer
+        explainer = LimeTabularExplainer(
+            training_data=self.X_train.values,
+            feature_names=self.X_train.columns.tolist(),
+            mode="regression" if self.task_type == TASK_TYPES[0] else "classification",
+            random_state=42
+        )
+
+        # Ensure the output directory exists
+        os.makedirs(TMP_FOLDER, exist_ok=True)
+
+        # Explain each instance and save the explanation to a file
+        explanations = []
+        class_names = None
+        labels = None
+        if self.task_type == TASK_TYPES[1]:
+            class_names = [str(cls) for cls in self.y_train.iloc[:, 0].unique()]
+            labels = list(range(len(class_names)))
+        for i, instance in enumerate(instances):
+            data_row = self.X_train.iloc[instance].values
+            explanation = explainer.explain_instance(
+                data_row=data_row,
+                predict_fn=predict_fn,
+                labels=labels,
+                num_features=min(10, len(self.input_features)) # Limit to 10 features or fewer
+            )
+            explanations.append(explanation)
+
+            # Save the explanation to a file
+            explanation_file = os.path.join(TMP_FOLDER, f"lime_explanation_gp_{i}.html")
+            explanation.save_to_file(explanation_file)
+            print(f"Explanation for instance {i} saved to {explanation_file}")
+
+        # Return the list of explanation objects
+        return explanations
 
 
 def get_model(selected_model: str, X: pd.DataFrame, y: pd.DataFrame,

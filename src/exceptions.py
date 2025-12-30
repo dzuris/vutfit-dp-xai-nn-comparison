@@ -7,3 +7,6 @@ class UnsupportedTaskTypeException(Exception):
 
 class UnsupportedModelException(Exception):
     """Invalid Model Selection."""
+
+class UnsupportedXaiMethodException(Exception):
+    """Invalid XAI Method Selection."""

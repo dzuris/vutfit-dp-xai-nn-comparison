@@ -7,11 +7,14 @@ from utils import load_config
 from preprocess import load_and_preprocess_data
 from models import get_model
 from logging_handler import LoggerHandler
+from exceptions import UnsupportedXaiMethodException
+
+XAI_METHODS = ['shap', 'lime']
 
 def main():
     """Main program function.
     
-    Load config, load model, and explain the model.
+    Load config, load model, and explain the model using selected method.
     """
     # Create an argument parser
     parser = argparse.ArgumentParser(description="Explaining Model's behavior script")
@@ -41,8 +44,30 @@ def main():
     model.load_model()
     print('Model loaded...')
 
-    # Explain model using SHAP
-    model.explain_shap()
+    # Obtain selected XAI method (e.g. SHAP, LIME, etc)
+    selected_method_xai = config['xai']['method']
+
+    try:
+        if selected_method_xai == XAI_METHODS[0]:
+            # SHAP
+            model.explain_shap()
+        elif selected_method_xai == XAI_METHODS[1]:
+            # LIME
+            _ = model.explain_lime(config['xai']['lime']['index_instance_to_explain'])
+        else:
+            raise UnsupportedXaiMethodException(
+                f"Unknown XAI method selection: {selected_method_xai}."
+            )
+    except KeyError as exc:
+        raise UnsupportedXaiMethodException(
+            f"Unsupported XAI method selection: {selected_method_xai}."
+        ) from exc
+    except NotImplementedError as exc:
+        raise UnsupportedXaiMethodException(
+            f"Unsupported XAI method: '{selected_method_xai}', "
+            f"for task type: '{config['selected_model']}'."
+            ) from exc
+
     print('MODEL SUCCESSFULLY EXPLAINED!')
 
 if __name__ == "__main__":

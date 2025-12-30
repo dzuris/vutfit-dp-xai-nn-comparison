@@ -3,9 +3,9 @@
 This module contains wrap for Logging, working as defying the handler with unique name and then
 logging into a file using one add_log command.
 """
+import os
 import logging
 import datetime
-from utils import create_folder
 
 
 class LoggerHandler(): # pylint: disable=too-few-public-methods
@@ -30,7 +30,8 @@ class LoggerHandler(): # pylint: disable=too-few-public-methods
         """
         level = config['level']
         filename = config['file']
-        create_folder(filename)
+        directory_path = os.path.dirname(filename)
+        os.makedirs(directory_path, exist_ok=True)  # Ensure the directory exists
 
         # Create and configure the logger
         self.logger = logging.getLogger(logger_name) # Unique name for the logger
