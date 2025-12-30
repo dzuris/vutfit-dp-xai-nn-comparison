@@ -57,7 +57,7 @@ For more info about datasets, check `datasets_description.txt` file if attached.
 `Makefile` file contains commands running different scripts. For example:
 
 ```bash
-make all    # Runs training and calculates Loss
+make model  # Runs training and calculates Loss
 make xai    # Explains model
 make clean  # Cleans logs and models
 ```
