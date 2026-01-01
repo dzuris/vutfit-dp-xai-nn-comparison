@@ -10,7 +10,7 @@ data:
   test_size: 0.2
   random_state: 42
 
-selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
+selected_model: NeuralNetwork # Options: 'NeuralNetwork', 'GeneticProgramming'
 loss_function: accuracy # Options: regression: 'mae', 'mse', classification: 'accuracy', 'log_loss'
 
 model_training:
@@ -34,8 +34,8 @@ model_training:
     elitism: False
 
 xai:
-  # Method options for both nn and gp: 'shap', 'lime', 'visualize'
-  method: "visualize"
+  # Method options for both nn and gp: 'shap', 'lime', 'visualize', 'summarize'
+  method: "summarize"
   lime:
     index_instance_to_explain: [0, 1] # List of indices in data to explain
 

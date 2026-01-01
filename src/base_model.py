@@ -43,6 +43,8 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
             Predict test data.
         get_model_loss() -> float:
             Calculates loss function value on test data.
+        get_model_summary():
+            Summarize the trained model's attributes.
         visualize_model():
             Visualize the model.
         explain_shap():
@@ -169,6 +171,11 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
         print(f"Loss function: {self.selected_loss}")
         return calculate_loss(y_test_dict, predictions, self.selected_loss, self.task_type)
+
+    @abstractmethod
+    def get_model_summary(self):
+        """Summarize model's attributes."""
+        raise NotImplementedError("The method 'summarize' must be implemented in a subclass.")
 
     @abstractmethod
     def visualize_model(self):

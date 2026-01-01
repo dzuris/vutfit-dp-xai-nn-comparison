@@ -35,6 +35,8 @@ class NeuralNetworkModel(BaseModel):
             Creates and train Neural Network model on provided data, with config settings.
         predict():
             Predicts test data.
+        get_model_summary():
+            Summarize the trained model's attributes.
         visualize_model():
             Visualize the model.
         explain_shap():
@@ -182,6 +184,39 @@ class NeuralNetworkModel(BaseModel):
                 result_dict[target_column] = predictions_nn.tolist()
 
         return result_dict
+
+    def get_model_summary(self):
+        """
+        Save a summary of the neural network model for interpretability to a file.
+
+        Includes:
+        - Model architecture (layers, neurons, activation functions).
+        - Total number of parameters.
+        - Training information (loss function, optimizer, learning rate).
+        """
+        # skeleton of the network (number of layers, their types, number of neurons in each layer,
+        #   activation functions used in each layer, dropout rates)
+        # training and validation accuracy/loss
+        output_file = f"{TMP_FOLDER}/nn_summarization.txt"
+        with open(output_file, "w", encoding='utf-8') as f:
+            f.write("Neural Network Summary:\n")
+            f.write("=======================\n")
+            f.write(f"Number of layers: {len(self.model.layers)}\n")
+            for i, layer in enumerate(self.model.layers):
+                f.write(f"Layer {i+1}: {layer.name}\n")
+                f.write(f"\tType: {type(layer).__name__}\n")
+                if hasattr(layer, 'units'):
+                    f.write(f"\tNeurons: {layer.units}\n")
+                if hasattr(layer, 'activation'):
+                    f.write(f"\tActivation: {layer.activation.__name__}\n")
+                if hasattr(layer, 'rate'):
+                    f.write(f"\tDropout Rate: {layer.rate}\n")
+            f.write(f"Total trainable parameters: {self.model.count_params()}\n")
+            f.write(f"Loss function: {self.model.loss}\n")
+            f.write(f"Optimizer: {self.model.optimizer.name}\n")
+            f.write(f"Learning rate: {self.model.optimizer.learning_rate.numpy()}\n")
+
+        print(f"Neural network summary saved to {output_file}.")
 
     def visualize_model(self):
         """

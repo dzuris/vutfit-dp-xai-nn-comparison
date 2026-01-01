@@ -44,6 +44,8 @@ class GeneticProgrammingModel(BaseModel):
             Creates and train Neural Network model.
         predict() -> dict:
             Predicts test data.
+        get_model_summary():
+            Summarize the trained model's attributes.
         visualize_model():
             Visualize the model.
         explain_shap():
@@ -277,6 +279,89 @@ class GeneticProgrammingModel(BaseModel):
 
             predictions[target_name] = pred_values
         return predictions
+
+    def get_model_summary(self):
+        """
+        Summarize the genetic programming model for interpretability and save the summary to a file.
+
+        Includes:
+        - Decision tree structure (nodes, depth, rules).
+        - Complexity metrics (number of rules, branching factor).
+        - Summary for each target variable's tree.
+        """
+        # number of nodes, tree depth
+        # number of rules in the tree, average branching factor, redundant or unused nodes/features
+        if not self.best_individuals:
+            raise ValueError("No trained model exists. Train the model before summarizing.")
+
+        output_file = f"{TMP_FOLDER}/gp_summarization.txt"
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write("Genetic Programming Model Summary\n")
+            f.write("=================================\n\n")
+
+            for target_name, tree in self.best_individuals.items():
+                f.write(f"Target Variable: {target_name}\n")
+                f.write("-----------------------------\n")
+
+                # Number of nodes
+                num_nodes = len(tree)
+                f.write(f"Number of nodes: {num_nodes}\n")
+
+                # Tree depth
+                tree_depth = tree.height
+                f.write(f"Tree depth: {tree_depth}\n")
+
+                # Extract rules
+                rules = self.extract_rules(tree)
+                f.write(f"Number of rules: {len(rules)}\n")
+                f.write("Rules:\n")
+                for rule in rules:
+                    f.write(f"\t{rule}\n")
+
+                # Average branching factor
+                branching_factors = [
+                    child.arity
+                    for child in tree
+                    if isinstance(child, gp.Primitive)
+                ]
+
+                if branching_factors:
+                    avg_branching_factor = sum(branching_factors) / len(branching_factors)
+                else:
+                    avg_branching_factor = 0
+                f.write(f"Average branching factors: {avg_branching_factor:.2f}\n")
+
+                f.write("\n")
+
+            print("Summary saved successfully.")
+
+    def extract_rules(self, tree):
+        """
+        Extract rules from a genetic programming tree.
+
+        Args:
+            tree (gp.PrimitiveTree): The tree to extract rules from.
+
+        Returns:
+            list: A list of rules as strings.
+        """
+        rules = []
+
+        def traverse(index):
+            node = tree[index]
+            if isinstance(node, gp.Primitive): # Internal node
+                rule = f"{node.name}("
+                child_rules = [traverse(index + i + 1) for i in range(node.arity)]
+                rule += ", ".join(child_rules) + ")"
+                return rule
+
+            if isinstance(node, gp.Terminal): # Leaf node
+                return str(node.value)
+
+            return ""
+
+        rules.append(traverse(0))
+        return rules
 
     def visualize_model(self):
         """

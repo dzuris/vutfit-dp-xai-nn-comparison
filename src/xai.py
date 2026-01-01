@@ -9,7 +9,7 @@ from preprocess import load_and_preprocess_data
 from logging_handler import LoggerHandler
 from exceptions import UnsupportedXaiMethodException
 
-XAI_METHODS = ['shap', 'lime', 'visualize']
+XAI_METHODS = ['shap', 'lime', 'visualize', 'summarize']
 
 def main():
     """Main program function.
@@ -54,6 +54,8 @@ def main():
             _ = model.explain_lime(config['xai']['lime']['index_instance_to_explain'])
         elif selected_method_xai == XAI_METHODS[2]: # visualize
             model.visualize_model()
+        elif selected_method_xai == XAI_METHODS[3]: # summarize
+            model.get_model_summary()
         else:
             raise UnsupportedXaiMethodException(
                 f"Unknown XAI method selection: {selected_method_xai}."
