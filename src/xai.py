@@ -35,12 +35,12 @@ def main():
     print('Logger created...')
 
     # Load and preprocess the data
-    X, y = load_and_preprocess_data(config['data'])
+    X, y, class_names = load_and_preprocess_data(config['data'])
     print('Data preprocessed...')
 
     # Load the model
     selected_model = config['selected_model']
-    model = get_model(selected_model, X, y, config, logger)
+    model = get_model(selected_model, X, y, class_names, config, logger)
     model.load_model()
     print('Model loaded...')
 

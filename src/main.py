@@ -102,11 +102,11 @@ def main():
 
     print("\nPreprocessing...")
     # Load dataset and split it into train and test sets
-    X, y = load_and_preprocess_data(config['data'])
+    X, y, class_names = load_and_preprocess_data(config['data'])
 
     print("\nTraining...")
     # Train the model
-    model = train_model(X, y, config, logger)
+    model = train_model(X, y, class_names, config, logger)
 
     # Make predictions
     print("\nPredicting...")

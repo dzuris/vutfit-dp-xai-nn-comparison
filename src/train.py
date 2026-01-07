@@ -11,6 +11,7 @@ from logging_handler import LoggerHandler
 def train_model(
         X: pd.DataFrame,
         y: pd.DataFrame,
+        class_names: list[str],
         config: dict,
         logger: LoggerHandler) -> BaseModel:
     """
@@ -22,6 +23,7 @@ def train_model(
     Args:
         X (pd.DataFrame): Dataset Features.
         y (pd.DataFrame): Dataset Targets.
+        class_names (list[str]): List of unique target column values.
         config (dict): Configuration for training and initializing the model.
         logger (LoggerHandler): Handler for recording logs.
 
@@ -36,7 +38,7 @@ def train_model(
     start_time = time.time()
 
     # Create and train the model
-    model = get_model(selected_model, X, y, config, logger)
+    model = get_model(selected_model, X, y, class_names, config, logger)
     model.create_and_train_model()
 
     # Save model into a file

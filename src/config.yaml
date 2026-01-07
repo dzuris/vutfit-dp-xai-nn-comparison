@@ -35,9 +35,9 @@ model_training:
 
 xai:
   # Method options for both nn and gp: 'shap', 'lime', 'visualize', 'summarize'
-  method: "summarize"
+  method: 'lime'
   lime:
-    index_instance_to_explain: [0, 1] # List of indices in data to explain
+    index_instance_to_explain: [0, 1, 2, 3] # List of indices in data to explain
 
 logging:
   format: '%(name)s - %(levelname)s - %(message)s'

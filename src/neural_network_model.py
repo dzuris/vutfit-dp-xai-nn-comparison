@@ -48,6 +48,7 @@ class NeuralNetworkModel(BaseModel):
             self,
             X: pd.DataFrame,
             y: pd.DataFrame,
+            class_names: list[str],
             config: dict,
             logger: LoggerHandler,
             model_filename: str = "nn_trained_model.keras",
@@ -60,12 +61,20 @@ class NeuralNetworkModel(BaseModel):
         Args:
             X (pd.DataFrame): Dataset features.
             y (pd.DataFrame): Dataset targets.
+            class_names: list[str]: Unique class names for target column.
             config (dict): Configuration.
             logger (LoggerHandler): Handler for logging.
             model_filename (str): Neural Network model filename.
             folder_path (str): Path to folder where NN model files should be stored/loaded from.
         """
-        super().__init__(X, y, config, logger, model_filename, folder_path)
+        super().__init__(
+            X=X,
+            y=y,
+            class_names=class_names,
+            config=config,
+            logger=logger,
+            model_filename=model_filename,
+            folder_path=folder_path)
         self.training_config = config['model_training']['nn']
         self.logger.add_log(f"NN Training configuration: {self.training_config}")
         self.model = None
@@ -304,11 +313,9 @@ class NeuralNetworkModel(BaseModel):
         # Determine mode, class names and labels based on task type
         if self.task_type == TASK_TYPES[1]: # Classification
             mode = "classification"
-            class_names = [str(cls) for cls in self.y_train.iloc[:, 0].unique()]
-            labels = list(range(len(class_names)))
+            labels = list(range(len(self.class_names)))
         elif self.task_type == TASK_TYPES[0]: # Regression
             mode = "regression"
-            class_names = None
             labels = None
         else:
             raise ValueError(f"Unsupported task type: {self.task_type}")
@@ -317,7 +324,7 @@ class NeuralNetworkModel(BaseModel):
         explainer = LimeTabularExplainer(
             training_data=self.X_train.values,
             feature_names=self.X_train.columns.tolist(),
-            class_names=class_names,
+            class_names=self.class_names,
             mode=mode,
             random_state=42
         )

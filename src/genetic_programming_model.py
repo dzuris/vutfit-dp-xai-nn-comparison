@@ -57,6 +57,7 @@ class GeneticProgrammingModel(BaseModel):
             self,
             X: pd.DataFrame,
             y: pd.DataFrame,
+            class_names: list[str],
             config: dict,
             logger: LoggerHandler,
             model_filename: str = "gp_model.pickle",
@@ -69,12 +70,20 @@ class GeneticProgrammingModel(BaseModel):
         Args:
             X (pd.DataFrame): Dataset features.
             y (pd.DataFrame): Dataset targets.
+            class_names: list[str]: Unique class names for target column.
             config (dict): Configuration.
             logger (LoggerHandler): Handler for logging.
             model_filename (str, optional): Name of the file for storing best individuals.
             folder_path (str, optional): Path to folder where GP file should be stored/loaded from.
         """
-        super().__init__(X, y, config, logger, model_filename, folder_path)
+        super().__init__(
+            X=X,
+            y=y,
+            class_names=class_names,
+            config=config,
+            logger=logger,
+            model_filename=model_filename,
+            folder_path=folder_path)
         self.input_features = X.columns
         self.training_config = config['model_training']['gp']
         self.logger.add_log(f"GP Training configuration: {self.training_config}")
@@ -503,11 +512,9 @@ class GeneticProgrammingModel(BaseModel):
 
         # Explain each instance and save the explanation to a file
         explanations = []
-        class_names = None
         labels = None
         if self.task_type == TASK_TYPES[1]:
-            class_names = [str(cls) for cls in self.y_train.iloc[:, 0].unique()]
-            labels = list(range(len(class_names)))
+            labels = list(range(len(self.class_names)))
         for i, instance in enumerate(instances):
             data_row = self.X_train.iloc[instance].values
             explanation = explainer.explain_instance(

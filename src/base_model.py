@@ -17,6 +17,7 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
     to be implemented in subclasses.
 
     Attributes:
+        class_names: list[str]: List of target column unique class names.
         file_path (str): Path to the model file.
         task_type (str): Type of task the model is dealing with (regression or classification).
         target_columns (list[str]): List of target columns.
@@ -56,6 +57,7 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
             self,
             X: pd.DataFrame,
             y: pd.DataFrame,
+            class_names: list[str],
             config: dict,
             logger: LoggerHandler,
             model_filename: str,
@@ -72,11 +74,15 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         Args:
             X (pd.DataFrame): Dataset features.
             y (pd.DataFrame): Dataset targets.
+            class_names: list[str]: Unique class names for target column.
             config (dict): Configuration.
             logger (LoggerHandler): Logger.
             model_filename (str): Filename where model should be saved/loaded from.
             folder_path (str): Path to folder to where model should be saved/loaded from.
         """
+        # Set unique class names
+        self.class_names = class_names
+
         # Set file where to store/load from model
         self.file_path = os.path.join(folder_path, f"{model_filename}")
         os.makedirs(folder_path, exist_ok=True) # Ensure that 'folder_path' folder exists

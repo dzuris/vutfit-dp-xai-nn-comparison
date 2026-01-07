@@ -66,7 +66,8 @@ def load_and_preprocess_data(config : dict):
         config: Configuration.
 
     Returns:
-        (pd.DataFrame, pd.DataFrame): Features and targets data frames.
+        (pd.DataFrame, pd.DataFrame, list[str]): Features and targets
+            data frames, unique class names.
     """
     dataset_filepath = config['dataset_path']
 
@@ -91,6 +92,7 @@ def load_and_preprocess_data(config : dict):
     target_columns = config['target_columns']
     X = df.drop(columns=target_columns)
     y = df[target_columns]
+    class_names = [str(cls) for cls in y.iloc[:, 0].unique()]
 
     # Encode categorical target columns if needed
     y_encoded = y.copy()
@@ -99,4 +101,4 @@ def load_and_preprocess_data(config : dict):
             label_encoder = LabelEncoder()
             y_encoded[col] = label_encoder.fit_transform(y_encoded[col])
 
-    return X, y_encoded
+    return X, y_encoded, class_names
