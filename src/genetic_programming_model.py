@@ -510,7 +510,7 @@ class GeneticProgrammingModel(BaseModel):
             f.write("-----------------------------\n")
 
             # Extract rules
-            rules = self._extract_rules(tree)
+            rules = _extract_rules(tree)
             f.write(f"Number of rules: {len(rules)}\n")
             f.write("Rules:\n")
             for rule in rules:
@@ -540,34 +540,6 @@ class GeneticProgrammingModel(BaseModel):
             f.write("\n")
 
         print("Summary saved successfully.")
-
-    def _extract_rules(self, tree):
-        """
-        Extract the rules from a genetic programming tree.
-
-        Args:
-            tree (gp.PrimitiveTree): The tree to extract rules from.
-
-        Returns:
-            list: A list of rules as strings.
-        """
-        rules = []
-
-        def traverse(index):
-            node = tree[index]
-            if isinstance(node, gp.Primitive): # Internal node
-                rule = f"{node.name}("
-                child_rules = [traverse(index + i + 1) for i in range(node.arity)]
-                rule += ", ".join(child_rules) + ")"
-                return rule
-
-            if isinstance(node, gp.Terminal): # Leaf node
-                return str(node.value)
-
-            return ""
-
-        rules.append(traverse(0))
-        return rules
 
     def visualize_model(self):
         """
@@ -710,7 +682,7 @@ class GeneticProgrammingModel(BaseModel):
             print(f"\n- Y True:\n{self.y_train.iloc[idx]}")
             print('-----------------------------------')
 
-# Recursive function to add nodes and edges to the graph
+
 def _add_nodes_edges(expr, parent_id=None, tree=None, index=0, dot=None):
     """
     Recursively add nodes and edges to the graph for visualization.
@@ -760,3 +732,32 @@ def _add_nodes_edges(expr, parent_id=None, tree=None, index=0, dot=None):
 
     # Handle unexpected types
     return index + 1
+
+
+def _extract_rules(tree):
+    """
+    Extract the rules from a GP tree.
+
+    Args:
+        tree (gp.PrimitiveTree): The tree to extract rules from.
+
+    Returns:
+        list: A list of rules as strings.
+    """
+    rules = []
+
+    def traverse(index):
+        node = tree[index]
+        if isinstance(node, gp.Primitive): # Internal node
+            rule = f"{node.name}("
+            child_rules = [traverse(index + i + 1) for i in range(node.arity)]
+            rule += ", ".join(child_rules) + ")"
+            return rule
+
+        if isinstance(node, gp.Terminal): # Leaf node
+            return str(node.value)
+
+        return ""
+
+    rules.append(traverse(0))
+    return rules
