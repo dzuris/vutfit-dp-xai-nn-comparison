@@ -4,10 +4,26 @@ This module contains abstract class for models.
 """
 from abc import ABC, abstractmethod
 import os
+import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from logging_handler import LoggerHandler
-from utils import calculate_loss, TASK_TYPES, MODELS_FOLDER
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import mean_absolute_error, mean_squared_error, log_loss, accuracy_score
+from src.logging_handler import LoggerHandler
+from src.utils import TASK_TYPES, MODELS_FOLDER
+from src.exceptions import (
+    UnsupportedLossException,
+    UnsupportedTaskTypeException)
+
+
+LOSS_FUNCTIONS_REGRESSION = {
+    'mae': mean_absolute_error,
+    'mse': mean_squared_error
+}
+LOSS_FUNCTIONS_CLASSIFICATION = {
+    'accuracy': accuracy_score,
+    'log_loss': log_loss
+}
 
 
 class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
@@ -17,71 +33,78 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
     to be implemented in subclasses.
 
     Attributes:
-        class_names: list[str]: List of target column unique class names.
+        y_encoder (LabelEncoder): Encoder for target column.
+        target_column (str): Target column name.
+        class_names (list[str]): List of unique values in the target column.
         file_path (str): Path to the model file.
-        task_type (str): Type of task the model is dealing with (regression or classification).
-        target_columns (list[str]): List of target columns.
-        selected_loss (str): Selected loss function (mse, mae for regression;
-            accuracy, log_loss for classification)
-        target_unique_classes (ndarray): Array containing the
-            unique class labels for classification.
+        task_type (str): Type of the task the model is dealing
+            with ('regression' or 'classification').
+        selected_loss (str): Name of the selected loss function ('mse', 'mae' for regression;
+            'accuracy', 'log_loss' for classification)
         logger (LoggerHandler): Logging handler.
-        feature_names (list[str]): List of feature names.
+        feature_names (list[str]): List of feature names (X.columns).
         X_train (pd.DataFrame): Training features.
         X_test (pd.DataFrame): Testing features.
         y_train (pd.DataFrame): Training targets.
-        y_test (pd.DataFrame): Testing features.
-
+        y_test (pd.DataFrame): Testing targets.
 
     Methods:
         save_model():
-            Saves model to the file.
+            Saves the model to the file.
         load_model():
-            Loads model from the file.
+            Loads the model from the file.
         create_and_train_model():
-            Creates and train model on provided data, with config settings.
-        predict() -> dict:
+            Creates and train the model on provided data, with configuration settings.
+        predict() -> np.ndarray:
             Predict test data.
         get_model_loss() -> float:
-            Calculates loss function value on test data.
+            Calculates loss value on test data.
         get_model_summary():
             Summarize the trained model's attributes.
         visualize_model():
             Visualize the model.
         explain_shap():
             Explain the model using SHAP values.
-        explain_lime() -> list(explanations):
+        explain_lime():
             Explain the model using LIME algorithm and returns explanation for each instance.
     """
     def __init__( # pylint: disable=too-many-positional-arguments, too-many-arguments
-            self,
-            X: pd.DataFrame,
-            y: pd.DataFrame,
-            class_names: list[str],
-            config: dict,
-            logger: LoggerHandler,
-            model_filename: str,
-            folder_path: str = MODELS_FOLDER):
-        """Model object constructor
+        self,
+        X: pd.DataFrame,
+        y: pd.DataFrame,
+        y_encoder: LabelEncoder,
+        config: dict,
+        logger: LoggerHandler,
+        model_filename: str,
+        folder_path: str = MODELS_FOLDER
+    ):
+        """Initialize a base model instance.
 
-        The method creates a file_path to file where model should be stored/loaded from. If the
-        path to the file does not exist, the methods creates directories to the file. Moreover
-        the function checks if obtained task type is valid and set the task_type attribute. Set
-        the target_columns and selected_loss attributes. Checks for number of target columns
-        validity and sets target_unique_classes attribute for classification task. Attach
-        logger attribute and split data into X_train, X_test, y_train and y_test attributes.
+        This method sets y_encoder, target_column, class_names as model attributes. Obtain
+        file_path, sets task_type and check if is valid. Furthermore sets other attributes such
+        us selected_loss, logger and feature_names. Finally it splits X and y into training
+        and testing sets.
 
         Args:
             X (pd.DataFrame): Dataset features.
             y (pd.DataFrame): Dataset targets.
-            class_names: list[str]: Unique class names for target column.
+            y_encoder: LabelEncoder: Encoder for target column.
             config (dict): Configuration.
             logger (LoggerHandler): Logger.
-            model_filename (str): Filename where model should be saved/loaded from.
-            folder_path (str): Path to folder to where model should be saved/loaded from.
+            model_filename (str): Filename of model's file for saving/loading.
+            folder_path (str): Path to folder where model should be saved/loaded from.
         """
-        # Set unique class names
-        self.class_names = class_names
+        # Set y encoder
+        self.y_encoder = y_encoder
+
+        # Set target column and unique class names
+        if isinstance(y, pd.Series):
+            self.target_column = y.name
+        elif isinstance(y, pd.DataFrame):
+            if len(y.columns) == 1:
+                self.target_column = y.columns[0]
+        if self.y_encoder:
+            self.class_names = self.y_encoder.classes_
 
         # Set file where to store/load from model
         self.file_path = os.path.join(folder_path, f"{model_filename}")
@@ -95,15 +118,7 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
                 "Task type could be 'regression' or 'classification'.")
 
         # Obtain other values from config
-        self.target_columns = config['data']['target_columns']
         self.selected_loss = config['loss_function']
-
-        # For classification allow only one target column, and obtain number of classes for target
-        if self.task_type == TASK_TYPES[1]:
-            if y.shape[1] > 1:
-                raise ValueError("Only one target column is allowed for classification.")
-            # Obtain number of classification classes
-            self.target_unique_classes = y.iloc[:, 0].unique()
 
         # Set logger
         self.logger = logger
@@ -115,11 +130,12 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(
             X, y,
             test_size=config['data']['test_size'],
-            random_state=config['data']['random_state'])
+            random_state=config['data']['random_state']
+        )
 
     @abstractmethod
     def save_model(self):
-        """Saves model to a file.
+        """Saves the model to a file.
         
         This method must be implemented by subclass to define how the model
         should be persisted to disk.
@@ -131,7 +147,7 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
     @abstractmethod
     def load_model(self):
-        """Loads model from a file.
+        """Loads the model from a file.
         
         This method must be implemented by subclass to define how the model
         should be loaded from a disk.
@@ -155,7 +171,7 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
             "The method 'create_and_train_model' must be implemented in a subclass.")
 
     @abstractmethod
-    def predict(self) -> dict:
+    def predict(self) -> np.ndarray:
         """Predict data using model.
         
         This method must be implemented by subclass to define how the model
@@ -172,27 +188,44 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         Returns:
             float: Calculated loss value.
         """
-        predictions = self.predict()
-        y_test_dict = self.y_test.to_dict(orient="list")
+        y_pred = self.predict()
+        y_true = self.y_test
 
-        print(f"Loss function: {self.selected_loss}")
-        return calculate_loss(y_test_dict, predictions, self.selected_loss, self.task_type)
+        return calculate_loss(
+            y_true=y_true,
+            y_pred=y_pred,
+            loss_name=self.selected_loss,
+            task_type=self.task_type
+        )
 
     @abstractmethod
     def get_model_summary(self):
-        """Summarize model's attributes."""
+        """Summarize model's attributes.
+
+        This method must be implemented by subclass to define how to summarize the model.
+
+        Raises:
+            NotImplementedError: If the method is not implemented in a subclass.
+        """
         raise NotImplementedError("The method 'summarize' must be implemented in a subclass.")
 
     @abstractmethod
     def visualize_model(self):
-        """Visualize the model."""
+        """Visualize the model.
+
+        This method must be implemented by subclass to define how to visualize the model.
+
+        Raises:
+            NotImplementedError: If the method is not implemented in a subclass.
+        """
         raise NotImplementedError("The method 'visualize_model' must be implemented in a subclass.")
 
     @abstractmethod
     def explain_shap(self):
         """Explain model using SHAP values.
 
-        This method must be implemented by subclass to define how to explain the model.
+        This method must be implemented by subclass to define
+        how to explain the model using SHAP method.
 
         Raises:
             NotImplementedError: If the method is not implemented in a subclass.
@@ -201,5 +234,86 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
     @abstractmethod
     def explain_lime(self, instances):
-        """Explain model using LIME method."""
+        """Explain model using LIME method.
+        
+        This method must be implemented by subclass to define
+        how to explain the model using LIME method.
+
+        Raises:
+            NotImplementedError: If the method is not implemented in a subclass.
+        """
         raise NotImplementedError("The method 'explain_lime' must be implemented in a subclass.")
+
+
+def obtain_loss_function(task_type: str, loss_name: str):
+    """Obtains loss function according to selection and task type.
+
+    The function validates if selected loss function is possible to use for
+    selected task type.
+
+    Args:
+        task_type (str): Task type, 'regression' or 'classification'.
+        loss_name (str): Selected loss function name.
+
+    Raises:
+        UnsupportedLossException: If an unsupported loss function is provided.
+        UnsupportedTaskTypeException: If an unsupported task type is provided.
+
+    Returns:
+        callable: Loss function corresponding to the selected task type and configuration.
+    """
+    if task_type == TASK_TYPES[0]: # regression
+        if loss_name not in LOSS_FUNCTIONS_REGRESSION:
+            raise UnsupportedLossException(
+                f'Unsupported regression loss: {loss_name}.')
+        return LOSS_FUNCTIONS_REGRESSION[loss_name]
+
+    if task_type == TASK_TYPES[1]: # classification
+        if loss_name not in LOSS_FUNCTIONS_CLASSIFICATION:
+            raise UnsupportedLossException(
+                f'Unsupported classification loss: {loss_name}.')
+        return LOSS_FUNCTIONS_CLASSIFICATION[loss_name]
+
+    raise UnsupportedTaskTypeException(
+        f"Unsupported task type: {task_type}. Use '{TASK_TYPES[0]}' or '{TASK_TYPES[1]}'.")
+
+
+def calculate_loss(
+        y_true: np.ndarray,
+        y_pred: np.ndarray,
+        loss_name: str,
+        task_type: str) -> float:
+    """Calculates the aggregated loss function.
+
+    The function calculates loss value on y_true and y_pred data
+    for selected task type and loss function.
+    
+    Args:
+        y_test (np.ndarray): Real Values.
+        y_pred (np.ndarray): Predicted Values.
+        loss_func (str): Selected loss function:
+            - Regression: 'mae' (Mean Absolute Error) or 'mse' (Mean Squared Error).
+            - Classification: 'accuracy' or 'log_loss'.
+        task_type (str): Type of task ('regression' or 'classification').
+
+    Returns:
+        float: Computed loss function value.
+    """
+
+    # Obtain loss function and checks for its validity
+    loss_fn = obtain_loss_function(task_type, loss_name)
+
+    # Process predictions for classification tasks
+    if task_type == TASK_TYPES[1]:
+
+        # log_loss expects probabilities
+        if loss_name == 'log_loss':
+            # Ensure predictions are clipped to avoid log(0)
+            y_pred = np.clip(y_pred, 1e-15, 1 - 1e-15) # Avoid log(0)
+        else:
+            # accuracy_score expects class labels
+            if y_pred.dtype.kind == "f":
+                y_pred = np.round(y_pred).astype(int)
+
+    # Compute loss
+    return float(loss_fn(y_true, y_pred))

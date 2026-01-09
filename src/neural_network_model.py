@@ -1,20 +1,21 @@
 """NeuralNetworkModel module.
 
-This module contains implementation of Neural Network Model that is subclass of BaseModel.
+This module contains implementation of Neural Network Model that is a subclass of BaseModel.
 """
 import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import shap
+from sklearn.preprocessing import LabelEncoder
 from lime.lime_tabular import LimeTabularExplainer
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model # pylint: disable=no-name-in-module  # type: ignore
 from tensorflow.keras.layers import Dense, Dropout # pylint: disable=no-name-in-module  # type: ignore
 from tensorflow.keras.optimizers import Adam, SGD # pylint: disable=no-name-in-module  # type: ignore
-from base_model import BaseModel
-from logging_handler import LoggerHandler
-from utils import MODELS_FOLDER, TASK_TYPES, TMP_FOLDER
+from src.base_model import BaseModel
+from src.logging_handler import LoggerHandler
+from src.utils import MODELS_FOLDER, TASK_TYPES, TMP_FOLDER
 
 class NeuralNetworkModel(BaseModel):
     """Neural Network Model.
@@ -23,32 +24,31 @@ class NeuralNetworkModel(BaseModel):
 
     Attributes:
         training_config (dict): Configuration for training Neural Network.
-        logger (LoggerHandler): Logging Handler.
         model (Sequential): The Neural Network model.
 
     Methods:
         save_model():
-            Saves the Neural Network model to a file.
+            Saves the Neural Network model into a file.
         load_model():
             Loads the Neural Network model from a file.
         create_and_train_model():
             Creates and train Neural Network model on provided data, with config settings.
-        predict():
+        predict() -> np.ndarray:
             Predicts test data.
         get_model_summary():
             Summarize the trained model's attributes.
         visualize_model():
-            Visualize the model.
+            Visualize the NN model.
         explain_shap():
-            Explains NN model using SHAP method.
-        explain_lime() -> list(lime.explanation.Explanation):
-            Explain the model using LIME algorithm and returns explanations for each instance.
+            Explains the model using SHAP method.
+        explain_lime():
+            Explains the model using LIME method.
     """
     def __init__( # pylint: disable=too-many-positional-arguments, too-many-arguments
             self,
             X: pd.DataFrame,
             y: pd.DataFrame,
-            class_names: list[str],
+            y_encoder: LabelEncoder,
             config: dict,
             logger: LoggerHandler,
             model_filename: str = "nn_trained_model.keras",
@@ -56,12 +56,12 @@ class NeuralNetworkModel(BaseModel):
         """
         Neural Network model constructor.
 
-        Sets training_config, logger and model attributes.
+        Sets training configuration attribute and initializes the model.
 
         Args:
             X (pd.DataFrame): Dataset features.
-            y (pd.DataFrame): Dataset targets.
-            class_names: list[str]: Unique class names for target column.
+            y (pd.DataFrame): Dataset target.
+            y_encoder (LabelEncoder): Encoder for target column.
             config (dict): Configuration.
             logger (LoggerHandler): Handler for logging.
             model_filename (str): Neural Network model filename.
@@ -70,17 +70,18 @@ class NeuralNetworkModel(BaseModel):
         super().__init__(
             X=X,
             y=y,
-            class_names=class_names,
+            y_encoder=y_encoder,
             config=config,
             logger=logger,
             model_filename=model_filename,
             folder_path=folder_path)
-        self.training_config = config['model_training']['nn']
-        self.logger.add_log(f"NN Training configuration: {self.training_config}")
+        training_config = config['model_training']['nn']
+        self.logger.add_log(f"NN Training configuration: {training_config}")
+        self.training_config = training_config
         self.model = None
 
     def save_model(self):
-        """Saves model into a file."""
+        """Saves the model into a file."""
         self.model.save(self.file_path)
 
     def load_model(self):
@@ -96,10 +97,7 @@ class NeuralNetworkModel(BaseModel):
 
     def create_and_train_model(self): # pylint: disable=too-many-arguments, too-many-positional-arguments, arguments-differ
         """
-        The function creates and train NN model.
-
-        Firstly initializes model's architecture, creates output layer according to task type,
-        sets optimizer, compiles the model and trains the model.
+        Create and train a single-output neural network model.
 
         Raises:
             ValueError: If unsupported optimizer is provided in configuration for nn
@@ -108,7 +106,7 @@ class NeuralNetworkModel(BaseModel):
         """
         self.model = Sequential()
 
-        # Explicit input definition
+        # Input layer
         self.model.add(tf.keras.Input(shape=(self.X_train.shape[1],))) # pylint: disable=no-member
 
         # Hidden Layers
@@ -119,97 +117,110 @@ class NeuralNetworkModel(BaseModel):
             self.model.add(Dropout(self.training_config['dropout_rate']))
 
         # Output Layer
-        if self.task_type == TASK_TYPES[0]:
-            # No activation for regression
-            number_of_outputs = len(self.target_columns)
-            self.model.add(Dense(number_of_outputs, activation='linear'))
+        if self.task_type == TASK_TYPES[0]: # regression
+            # Single continuous output
+            self.model.add(Dense(1, activation='linear'))
             loss_function = "mean_squared_error"
             metrics = ['mae', 'mse']
-        elif self.task_type == TASK_TYPES[1]:
-            # Classification
-            classification_classes_count = len(self.target_unique_classes)
-            if classification_classes_count == 1:
-                # Binary classification
-                self.model.add(Dense(1, activation='sigmoid'))
-                loss_function = 'binary_crossentropy'
+
+        elif self.task_type == TASK_TYPES[1]: # classification
+            num_classes = len(self.class_names)
+
+            if num_classes == 2:
+                # Binary classification -> 1 output neuron
+                self.model.add(Dense(1, activation="sigmoid"))
+                loss_function = "binary_crossentropy"
+                metrics = ["accuracy"]
+
             else:
-                # Multi-class classification
-                self.model.add(Dense(classification_classes_count, activation='softmax'))
-                loss_function = 'sparse_categorical_crossentropy'
-            metrics = ['accuracy']
+                # Multi-class classification -> N output neurons
+                self.model.add(Dense(num_classes, activation="softmax"))
+                loss_function = "sparse_categorical_crossentropy"
+                metrics = ["accuracy"]
         else:
             raise ValueError(f"Unsupported task type: {self.task_type}")
 
         # Set optimizer
-        if self.training_config['optimizer'] == 'adam':
-            optimizer = Adam(learning_rate=self.training_config['learning_rate'])
-        elif self.training_config['optimizer'] == 'sgd':
-            optimizer = SGD(learning_rate=self.training_config['learning_rate'])
+        opt_name = self.training_config["optimizer"]
+        lr = self.training_config["learning_rate"]
+        if opt_name == 'adam':
+            optimizer = Adam(learning_rate=lr)
+        elif opt_name == 'sgd':
+            optimizer = SGD(learning_rate=lr)
         else:
             raise ValueError(
-                f'Unsupported Neural Network optimizer: {self.training_config['optimizer']}')
+                f'Unsupported Neural Network optimizer: {opt_name}')
 
         # Compile model
         self.model.compile(optimizer=optimizer, loss=loss_function, metrics=metrics)
 
         # Train the model
         log_dir = f"{TMP_FOLDER}/fit"
+        os.makedirs(log_dir, exist_ok=True) # Ensure the output directory exists
         tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=log_dir) # pylint: disable=no-member
-        self.model.fit(self.X_train, self.y_train,
+
+        self.model.fit(self.X_train,
+                       self.y_train,
                        epochs=self.training_config['epochs'],
                        batch_size=self.training_config['batch_size'],
                        validation_data=(self.X_test, self.y_test),
                        verbose=self.training_config['print_train_logs'],
                        callbacks=[tensorboard_cb])
 
-    def predict(self) -> dict:
-        """Predicts test data using the model.
+    def predict(self, X=None) -> np.ndarray:
+        """Predicts values using the trained neural network model.
+
+        Args:
+            X (pd.DataFrame, optional): Input features.
+                If None, uses self.X_test.
 
         Returns:
-            (dict): Predictions for each target column where column name is the key and
-                list of predictions is value.
+            np.ndarray: Predicted values for the single target column.
         """
-        # List of predictions
-        predictions_nn = self.model.predict(self.X_test)
 
-        # Initialize the dictionary
-        result_dict = {target: [] for target in self.target_columns}
+        # 1. Choose input data
+        if X is None:
+            X = self.X_test
 
-        if self.task_type == TASK_TYPES[0]:
-            # For regression, return raw values
-            for value in predictions_nn:
-                for idx, target in enumerate(self.target_columns):
-                    result_dict[target].append(value[idx])
-        elif self.task_type == TASK_TYPES[1]:
-            # Classification
-            target_column = self.target_columns[0]
-            if self.model.output_shape[-1] == 1:
-                # Binary classification: Convert probabilities to class labels (0 or 1)
-                predictions_nn = (predictions_nn >= 0.5).astype(int).flatten()
-                result_dict[target_column] = predictions_nn.tolist()
-            else:
-                # Multi-class classification: Get the class index with highest probability
-                predictions_nn = np.argmax(predictions_nn, axis=1)
-                result_dict[target_column] = predictions_nn.tolist()
+        # 2. Raw model predictions
+        preds = self.model.predict(X)
 
-        return result_dict
+        # 3. Regression
+        if self.task_type == TASK_TYPES[0]: # regression
+            return preds.flatten()
 
+        # 4. Classification
+        num_outputs = self.model.output_shape[-1]
+
+        if num_outputs == 1:
+            # Binary classification -> sigmoid output
+            # Convert probabilities to class labels (0 or 1)
+            return (preds >= 0.5).astype(int).flatten()
+
+        # Multi-class classification -> softmax output
+        # Return class indices
+        return np.argmax(preds, axis=1)
+
+    # --- EXPLAINING FUNCTIONS ---
     def get_model_summary(self):
         """
-        Save a summary of the neural network model for interpretability to a file.
+        Saves a summary of the neural network model for interpretability into a file.
 
         Includes:
         - Model architecture (layers, neurons, activation functions).
         - Total number of parameters.
         - Training information (loss function, optimizer, learning rate).
+        - Computed loss value using selected loss function in configuration.
         """
-        # skeleton of the network (number of layers, their types, number of neurons in each layer,
-        #   activation functions used in each layer, dropout rates)
-        # training and validation accuracy/loss
-        output_file = f"{TMP_FOLDER}/nn_summarization.txt"
+
+        # Sets output file
+        output_file = f"{TMP_FOLDER}/nn_{self.target_column}_summarization.txt"
+
         with open(output_file, "w", encoding='utf-8') as f:
             f.write("Neural Network Summary:\n")
             f.write("=======================\n")
+
+            # Network architecture
             f.write(f"Number of layers: {len(self.model.layers)}\n")
             for i, layer in enumerate(self.model.layers):
                 f.write(f"Layer {i+1}: {layer.name}\n")
@@ -220,10 +231,19 @@ class NeuralNetworkModel(BaseModel):
                     f.write(f"\tActivation: {layer.activation.__name__}\n")
                 if hasattr(layer, 'rate'):
                     f.write(f"\tDropout Rate: {layer.rate}\n")
-            f.write(f"Total trainable parameters: {self.model.count_params()}\n")
+
+            # Network parameters
+            f.write(f"\nTotal trainable parameters: {self.model.count_params()}\n")
             f.write(f"Loss function: {self.model.loss}\n")
             f.write(f"Optimizer: {self.model.optimizer.name}\n")
             f.write(f"Learning rate: {self.model.optimizer.learning_rate.numpy()}\n")
+
+            # Loss value
+            loss = self.get_model_loss()
+            f.write("\n --- LOSS VALUE ---\n")
+            f.write(f"Selected loss function name: {self.selected_loss}\n")
+            f.write(f"Loss function: {loss}\n")
+            f.write("\n")
 
         print(f"Neural network summary saved to {output_file}.")
 
@@ -271,83 +291,105 @@ class NeuralNetworkModel(BaseModel):
             plt.show()
 
     def explain_shap(self):
-        """Explain model using SHAP explainer on train data."""
+        """Explains the model using SHAP explainer."""
+
+        # Background sample for KernelExplainer
+        background = self.X_train.sample(100, random_state=42).values
+
+        # SHAP prediction wrapper
+        def predict_fn(X):
+            X = np.array(X)
+            preds = self.model.predict(X)
+
+            # Regression or Binary classification -> (n,) shape
+            if self.task_type == "regression" or preds.shape[1] == 1:
+                return preds.reshape(-1)
+
+            # Multi-class -> (n, C)
+            return preds
+
         # Initialize SHAP explainer
-        explainer = shap.KernelExplainer(self.model, self.X_train.sample(100, random_state=42))
+        explainer = shap.KernelExplainer(
+            predict_fn,
+            background
+        )
 
         # Calculate SHAP values
-        shap_values = explainer.shap_values(self.X_train)
+        shap_values = explainer.shap_values(self.X_train.values)
 
-        # Handle single and multi-output NN shap values
-        # For loop iterates through every output, for each output depicts summary
-        # graph which feature contributes to the result
-        for output_idx, col in enumerate(self.target_columns):
-            if shap_values.ndim == 2:   # Regression or single-probability binary
-                shap_to_plot = shap_values
-            else:
-                shap_to_plot = shap_values[:, :, output_idx]
-
+        # --- Regression or Binary Classification ---
+        if self.task_type == TASK_TYPES[0] or (
+            self.task_type == TASK_TYPES[1] and self.model.output_shape[1] == 1
+        ):
             shap.summary_plot(
-                shap_to_plot,
+                shap_values,
                 features=self.X_train,
                 feature_names=self.X_train.columns.tolist(),
                 show=False
             )
-            plt.title(f"SHAP Summary Plot — Target: {col}\n")
+            plt.title(f"SHAP Summary Plot — Target: {self.target_column}\n")
             plt.tight_layout()
             plt.show()
+            return
+
+        # --- Multi-class classification ---
+        if self.task_type == TASK_TYPES[1] and self.model.output_shape[1] > 1:
+            shap_values = np.transpose(shap_values, (2, 0, 1))
+            for i, class_name in enumerate(self.class_names):
+                shap.summary_plot(
+                    shap_values[i],
+                    features=self.X_train.values,
+                    feature_names=self.X_train.columns.tolist(),
+                    show=False
+                )
+                plt.title(f"SHAP Summary Plot - Class: {class_name}")
+                plt.tight_layout()
+                plt.show()
 
     def explain_lime(self, instances):
         """
-        Explain the Neural Network model using LIME for the given instances.
+        Explains the Neural Network model using LIME for the given instances.
 
         Args:
             instances (pd.DataFrame or np.ndarray): Instances to explain.
-
-        Raises:
-            ValueError: If not trained model exists for any target variable.
-
-        Returns:
-            list: A list of LIME explanation objects for each instance.
         """
-        # Determine mode, class names and labels based on task type
-        if self.task_type == TASK_TYPES[1]: # Classification
-            mode = "classification"
-            labels = list(range(len(self.class_names)))
-        elif self.task_type == TASK_TYPES[0]: # Regression
-            mode = "regression"
-            labels = None
-        else:
-            raise ValueError(f"Unsupported task type: {self.task_type}")
 
         # Initialize the LIME explainer
         explainer = LimeTabularExplainer(
             training_data=self.X_train.values,
             feature_names=self.X_train.columns.tolist(),
-            class_names=self.class_names,
-            mode=mode,
+            class_names=self.class_names if self.task_type == TASK_TYPES[1] else None,
+            mode="regression" if self.task_type == TASK_TYPES[0] else "classification",
             random_state=42
         )
 
         # Ensure the output directory exists
         os.makedirs(TMP_FOLDER, exist_ok=True)
 
-        # Explain each instance and save the explanation to a file
-        explanations = []
-        for index in range(len(instances)):
+        # Explain each instance for each target column and save the explanation to a file
+        for inst in instances:
+
             # Generate explanation for the given instance
-            data_row = self.X_train.iloc[index].values
+            data_row = self.X_train.iloc[inst].values
+
             explanation = explainer.explain_instance(
                 data_row=data_row,
                 predict_fn=self.model.predict,
-                labels=labels,
-                num_features=self.X_train.shape[1]
+                labels=(
+                    list(range(len(self.class_names)))
+                    if self.task_type == TASK_TYPES[1]
+                    else None
+                ),
+                num_features=min(10, self.X_train.shape[1])
             )
-            explanations.append(explanation)
 
             # Save the explanation to a file
-            explanation_file = os.path.join(TMP_FOLDER, f"lime_explanation_nn_{index}.html")
+            explanation_file = os.path.join(
+                TMP_FOLDER, f"lime_explanation_nn_{self.target_column}_{inst}.html"
+            )
             explanation.save_to_file(explanation_file)
-            print(f"Explanation for instance {index} saved to {explanation_file}")
-
-        return explanations
+            print(f"Instance: {inst}")
+            print(f"- Saved to: {explanation_file}")
+            print(f"\n- Data:\n{self.X_train.iloc[inst]}")
+            print(f"\n- Target:\n{self.y_train.iloc[inst]}")
+            print('-----------------------------------')

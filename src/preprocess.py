@@ -57,25 +57,26 @@ def load_dataset(filepath : str):
 
 
 def load_and_preprocess_data(config : dict):
-    """Loads and preprocesses data.
+    """Loads and preprocesses the data.
 
     This function preprocesses loaded dataset, handles missing values, encodes columns in target
     if needed and split data into features and targets data frames.
 
     Args:
-        config: Configuration.
+        config (dict): Configuration.
 
     Returns:
-        (pd.DataFrame, pd.DataFrame, list[str]): Features and targets
-            data frames, unique class names.
+        (pd.DataFrame, pd.DataFrame, dict[str, LabelEncoder]): Features and targets
+            data frames, and a dictionary of Label encoders for each target column.
     """
-    dataset_filepath = config['dataset_path']
 
-    # Print dataset filename
+    # Obtain dataset filepath
+    dataset_filepath = config['dataset_path']
     print(f"Dataset: {os.path.basename(dataset_filepath)}")
 
-    # Load dataset
+    # Load the dataset
     df = load_dataset(dataset_filepath)
+    print(f'Columns in dataset:\n{df.columns}')
 
     # Handle missing values
     strategy = config.get('missing_value_strategy', 'mean')
@@ -88,17 +89,25 @@ def load_and_preprocess_data(config : dict):
     elif strategy == 'drop':
         df.dropna(inplace=True)
 
-    print(f'Columns in dataset:\n{df.columns}')
+    # Split data to features and targets
     target_columns = config['target_columns']
     X = df.drop(columns=target_columns)
     y = df[target_columns]
-    class_names = [str(cls) for cls in y.iloc[:, 0].unique()]
+
+    # Label-encode categorical columns in X
+    X_encoded = X.copy()
+    for col in X_encoded.columns:
+        if X_encoded[col].dtype == "object" or X_encoded[col].dtype.name == "category":
+            le = LabelEncoder()
+            X_encoded[col] = le.fit_transform(X_encoded[col])
 
     # Encode categorical target columns if needed
     y_encoded = y.copy()
+    y_encoders = {}
     for col in y_encoded.columns:
         if not pd.api.types.is_numeric_dtype(y_encoded[col]):
-            label_encoder = LabelEncoder()
-            y_encoded[col] = label_encoder.fit_transform(y_encoded[col])
+            le = LabelEncoder()
+            y_encoded[col] = le.fit_transform(y_encoded[col])
+            y_encoders[col] = le
 
-    return X, y_encoded, class_names
+    return X_encoded, y_encoded, y_encoders

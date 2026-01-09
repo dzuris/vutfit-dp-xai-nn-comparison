@@ -16,11 +16,11 @@ LOGS_DIR:=logs
 # Targets
 .PHONY: all xai clean
 
-model: src/main.py
-	$(INTERPRETER) $< --config $(CONFIG_FILE)
+model:
+	$(INTERPRETER) -m src.main --config $(CONFIG_FILE)
 
-xai: src/xai.py
-	$(INTERPRETER) $< --config $(CONFIG_FILE)
+xai:
+	$(INTERPRETER) -m src.xai --config $(CONFIG_FILE)
 
 clean:
 	@echo "Cleaning directories \"$(LOGS_DIR) $(MODELS_DIR) $(TMP_DIR)\"..."

@@ -3,15 +3,21 @@
 This module contains implementation of Neural Network Model that is subclass of BaseModel.
 """
 import pandas as pd
-from utils import MODELS
-from base_model import BaseModel
-from neural_network_model import NeuralNetworkModel
-from genetic_programming_model import GeneticProgrammingModel
-from logging_handler import LoggerHandler
-from exceptions import UnsupportedModelException
+from sklearn.preprocessing import LabelEncoder
+from src.utils import MODELS
+from src.base_model import BaseModel
+from src.neural_network_model import NeuralNetworkModel
+from src.genetic_programming_model import GeneticProgrammingModel
+from src.logging_handler import LoggerHandler
+from src.exceptions import UnsupportedModelException
 
-def get_model(selected_model: str, X: pd.DataFrame, y: pd.DataFrame, # pylint: disable=too-many-positional-arguments, too-many-arguments
-              class_names: list[str], config: dict, logger: LoggerHandler) -> BaseModel:
+def get_model(selected_model: str, # pylint: disable=too-many-positional-arguments, too-many-arguments
+              X: pd.DataFrame,
+              y: pd.DataFrame,
+              y_encoder: LabelEncoder,
+              config: dict,
+              logger: LoggerHandler,
+              model_filename: str) -> BaseModel:
     """Obtain selected model.
 
     The function initializes Model object with all necessary arguments.
@@ -20,9 +26,10 @@ def get_model(selected_model: str, X: pd.DataFrame, y: pd.DataFrame, # pylint: d
         selected_model (str): Model selection ('NeuralNetwork' or 'GeneticProgramming').
         X (pd.DataFrame): Dataset Features.
         y (pd.DataFrame): Dataset Targets.
-        class_names (list[str]): List of unique target column values.
+        y_encoder: LabelEncoder: Label encoder for target column.
         config (dict): Configuration settings.
         logger (LoggerHandler): Handler for logging messages.
+        model_filename (str): File name of the model.
 
     Raises:
         UnsupportedModelException: If unsupported model selection si provided.
@@ -40,4 +47,4 @@ def get_model(selected_model: str, X: pd.DataFrame, y: pd.DataFrame, # pylint: d
             f"Unsupported model selection: {selected_model}."
             f"Possible values: '{MODELS[0]}' or '{MODELS[1]}'.")
 
-    return models[selected_model](X, y, class_names, config, logger)
+    return models[selected_model](X, y, y_encoder, config, logger, model_filename)

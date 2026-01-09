@@ -1,20 +1,20 @@
-"""Explaining model.
+"""xai.py - Explaining the model.
 
 This module loads the model and explain it.
 """
 import argparse
-from i_model import get_model
-from utils import load_config
-from preprocess import load_and_preprocess_data
-from logging_handler import LoggerHandler
-from exceptions import UnsupportedXaiMethodException
+from src.i_model import get_model
+from src.utils import load_config
+from src.preprocess import load_and_preprocess_data
+from src.logging_handler import LoggerHandler
+from src.exceptions import UnsupportedXaiMethodException
 
 XAI_METHODS = ['shap', 'lime', 'visualize', 'summarize']
 
 def main():
     """Main program function.
-    
-    Load config, load model, and explain the model using selected method.
+
+    The program explains selected model with selected xai method.
     """
     # Create an argument parser
     parser = argparse.ArgumentParser(description="Explaining Model's behavior script")
@@ -34,24 +34,47 @@ def main():
     logger = LoggerHandler(config['logging'], "XAILogger")
     print('Logger created...')
 
+    # -------------------------
     # Load and preprocess the data
-    X, y, class_names = load_and_preprocess_data(config['data'])
+    # -------------------------
+    X, y, y_encoders = load_and_preprocess_data(config['data'])
     print('Data preprocessed...')
 
+    # -------------------------
     # Load the model
-    selected_model = config['selected_model']
-    model = get_model(selected_model, X, y, class_names, config, logger)
+    # -------------------------
+    target_column = config['xai']['model_target_column_name']
+
+    # Check if the target_column exists in y
+    if target_column not in y:
+        raise ValueError(
+            f"The taregt column '{target_column}' does not exist in the provided data, "
+            f"possible target column options: {y.columns.values}."
+        )
+
+    model = get_model(
+        selected_model=config['selected_model'],
+        X=X,
+        y=y[target_column],
+        y_encoder=y_encoders[target_column] if y_encoders else None,
+        config=config,
+        logger=logger,
+        model_filename=config['xai']['model_filename_to_explain']
+    )
     model.load_model()
     print('Model loaded...')
 
+    # -------------------------
+    # XAI
+    # -------------------------
     # Obtain selected XAI method (e.g. SHAP, LIME, etc)
+    print("Explaining the model...")
     selected_method_xai = config['xai']['method']
-
     try:
         if selected_method_xai == XAI_METHODS[0]: # shap
             model.explain_shap()
         elif selected_method_xai == XAI_METHODS[1]: # lime
-            _ = model.explain_lime(config['xai']['lime']['index_instance_to_explain'])
+            model.explain_lime(config['xai']['lime']['index_instance_to_explain'])
         elif selected_method_xai == XAI_METHODS[2]: # visualize
             model.visualize_model()
         elif selected_method_xai == XAI_METHODS[3]: # summarize

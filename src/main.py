@@ -1,16 +1,16 @@
-"""Program module."""
+"""Program module for initializing the model."""
 import argparse
 import sys
 from pathlib import Path
-from preprocess import load_and_preprocess_data
-from train import train_model
-from logging_handler import LoggerHandler
-from utils import (
+from src.preprocess import load_and_preprocess_data
+from src.train import train_model
+from src.logging_handler import LoggerHandler
+from src.utils import (
     LOSS_FUNCTIONS_REGRESSION,
     LOSS_FUNCTIONS_CLASSIFICATION,
     TASK_TYPES, MODELS,
     load_config)
-from exceptions import (
+from src.exceptions import (
     UnsupportedLossException,
     UnsupportedTaskTypeException,
     UnsupportedModelException
@@ -82,7 +82,9 @@ def main():
     # Parse arguments
     args = parser.parse_args()
 
+    # -----------------------------------------
     # Load the configuration
+    # -----------------------------------------
     config = load_config(args.config)
 
     # Validate Configuration
@@ -94,28 +96,51 @@ def main():
         print("ERROR - ", e)
         sys.exit(1)
 
+    # -----------------------------------------
     # Create Logger
+    # -----------------------------------------
     logger = LoggerHandler(config['logging'], "MainLogger")
 
     # Log current running file
     logger.add_log(f'File: {Path(config['data']['dataset_path']).name}')
 
-    print("\nPreprocessing...")
+    # -----------------------------------------
     # Load dataset and split it into train and test sets
-    X, y, class_names = load_and_preprocess_data(config['data'])
+    # -----------------------------------------
+    print("\nPreprocessing...")
+    X, y, y_encoders = load_and_preprocess_data(config['data'])
 
-    print("\nTraining...")
+    # -----------------------------------------
     # Train the model
-    model = train_model(X, y, class_names, config, logger)
+    # -----------------------------------------
+    print("\nTraining...")
+    models = {}
+    target_columns = config['data']['target_columns']
+    for target_column in target_columns:
+        model = train_model(
+            X=X,
+            y=y[target_column],
+            y_encoder=y_encoders[target_column] if y_encoders else None,
+            target_column=target_column,
+            config=config,
+            logger=logger
+            )
+        models[target_column] = model
 
+    # -----------------------------------------
     # Make predictions
+    # -----------------------------------------
     print("\nPredicting...")
-    loss = model.get_model_loss()
+    selected_loss = config['loss_function']
+    logger.add_log(f'Loss function: {selected_loss}')
+    print(f"Loss function: {selected_loss}")
+    for target_column in target_columns:
+        model = models[target_column]
+        loss = model.get_model_loss()
 
-    # Log results
-    logger.add_log(f'Loss function: {config['loss_function']}')
-    logger.add_log(f'Loss on test data: {loss}')
-    print(f'Loss on test data: {loss}')
+        # Log results
+        logger.add_log(f'Loss on test data for target column {target_column}: {loss}')
+        print(f'Loss on test data for target column {target_column}: {loss}')
 
     print("\n--- SUCCESSFUL RUN ---")
 
