@@ -177,8 +177,8 @@ class GeneticProgrammingModel(BaseModel):
 
         # Safe math
         pset.addPrimitive(np.abs, 1)
-        pset.addPrimitive(protected_sqrt, 2)
-        pset.addPrimitive(protected_log, 2)
+        pset.addPrimitive(protected_sqrt, 1)
+        pset.addPrimitive(protected_log, 1)
 
         # Constants
         pset.addEphemeralConstant("rand101", functools.partial(random.randint, -1, 1))
