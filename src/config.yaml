@@ -1,17 +1,17 @@
 data:
-  dataset_path: "datasets/iris.csv"
-  type: classification # Options: regression, classification
+  dataset_path: "datasets/concrete+compressive+strength/Concrete_Data.xls"
+  type: regression # Options: regression, classification
   # If columns are not valid Python identifiers, the program coonverts them,
   # and here you need to specify valid column
   # names (e.g. "Concrete compressive strength(MPa, megapascals)" -> "Concrete_compressive_strength_MPa_megapascals").
   target_columns:
-    - variety
+    - Concrete_compressive_strength_MPa_megapascals
   missing_value_strategy: 'drop'  # Options: 'mean', 'median', 'mode', 'drop'
   test_size: 0.2
   random_state: 42
 
 selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
-loss_function: accuracy # Options: regression: 'mae', 'mse', classification: 'accuracy', 'log_loss'
+loss_function: mse # Options: regression: 'mae', 'mse', classification: 'accuracy', 'log_loss'
 
 model_training:
   nn:
@@ -35,10 +35,10 @@ model_training:
 
 xai:
   # model filename must match dataset in data config
-  model_filename_to_explain: "model_gp_variety.pickle"
-  model_target_column_name: "variety"
+  model_filename_to_explain: "model_gp_Concrete_compressive_strength_MPa_megapascals.pickle"
+  model_target_column_name: "Concrete_compressive_strength_MPa_megapascals"
   # Method options for both nn and gp: 'shap', 'lime', 'visualize', 'summarize'
-  method: 'visualize'
+  method: 'shap'
   lime:
     index_instance_to_explain: [0, 1, 2] # List of indices in data to explain
 

@@ -50,7 +50,7 @@ class LoggerHandler(): # pylint: disable=too-few-public-methods
         self.logger.addHandler(file_handler)
 
         # Initialize info
-        self.logger.info('--- START ---')
+        self.logger.info('\n--- START ---')
         self.logger.info("Timestamp: %s", datetime.datetime.now())
 
     def add_log(self, message: str, level: str = "INFO"):
