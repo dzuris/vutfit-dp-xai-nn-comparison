@@ -8,22 +8,17 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
-from sklearn.metrics import mean_absolute_error, mean_squared_error, log_loss, accuracy_score
 from src.logging_handler import LoggerHandler
-from src.utils import TASK_TYPES, MODELS_FOLDER
+from src.utils import (
+    TASK_TYPES,
+    MODELS_FOLDER,
+    LOSS_FUNCTIONS_REGRESSION,
+    LOSS_FUNCTIONS_CLASSIFICATION
+)
 from src.exceptions import (
     UnsupportedLossException,
-    UnsupportedTaskTypeException)
-
-
-LOSS_FUNCTIONS_REGRESSION = {
-    'mae': mean_absolute_error,
-    'mse': mean_squared_error
-}
-LOSS_FUNCTIONS_CLASSIFICATION = {
-    'accuracy': accuracy_score,
-    'log_loss': log_loss
-}
+    UnsupportedTaskTypeException
+)
 
 
 class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
