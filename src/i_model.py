@@ -6,8 +6,8 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from src.utils import MODELS
 from src.base_model import BaseModel
-from src.neural_network_model import NeuralNetworkModel
-from src.genetic_programming_model import GeneticProgrammingModel
+from src.nn_model import NeuralNetworkModel
+from src.gp_model import GeneticProgrammingModel
 from src.logging_handler import LoggerHandler
 from src.exceptions import UnsupportedModelException
 
