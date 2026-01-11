@@ -32,7 +32,6 @@ model_training:
     generations: 200
     crossover_pb: 0.5
     mutation_pb: 0.2
-    max_depth: 20
     elitism: False
 
 logging:

@@ -3,7 +3,7 @@ import argparse
 import sys
 from pathlib import Path
 from src.preprocess import load_and_preprocess_data
-from src.train import train_model
+from src.training.train import train_model
 from src.logging_handler import LoggerHandler
 from src.utils import (
     LOSS_FUNCTIONS_REGRESSION,
