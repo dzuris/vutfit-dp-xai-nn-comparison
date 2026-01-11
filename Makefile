@@ -8,7 +8,7 @@
 # Variables
 
 INTERPRETER:=python3
-CONFIG_FILE:=src/config.yaml
+CONFIG_FILE_TRAINING:=src/config_training.yaml
 CONFIG_FILE_XAI:=src/config_xai.yaml
 TMP_DIR:=tmp
 MODELS_DIR:=models
@@ -18,7 +18,7 @@ LOGS_DIR:=logs
 .PHONY: all xai clean
 
 model:
-	$(INTERPRETER) -m src.main --config $(CONFIG_FILE)
+	$(INTERPRETER) -m src.main --config $(CONFIG_FILE_TRAINING)
 
 xai:
 	$(INTERPRETER) -m src.xai --config $(CONFIG_FILE_XAI)
