@@ -10,32 +10,12 @@ data:
   test_size: 0.2
   random_state: 42
 
-selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
+selected_model: NeuralNetwork # Options: 'NeuralNetwork', 'GeneticProgramming'
 loss_function: mse # Options: regression: 'mae', 'mse', classification: 'accuracy', 'log_loss'
-
-model_training:
-  nn:
-    # Neural Network Model
-    hidden_units: 32
-    hidden_layers: 3
-    activation_function: relu
-    learning_rate: 0.001
-    optimizer: adam   # Options: 'adam', 'sgd'
-    epochs: 200
-    batch_size: 32
-    dropout_rate: 0.2
-    print_train_logs: 1 # 0 - not printing, 1 - printing
-  gp:
-    # Genetic Programming Model
-    population_size: 15
-    generations: 200
-    crossover_pb: 0.5
-    mutation_pb: 0.2
-    elitism: False
 
 xai:
   # model filename must match dataset in data config
-  model_filename_to_explain: "model_gp_Concrete_compressive_strength_MPa_megapascals.pickle"
+  model_filename_to_explain: "nn_model_Concrete_compressive_strength_MPa_megapascals.keras"
   model_target_column_name: "Concrete_compressive_strength_MPa_megapascals"
   # Method options for both nn and gp: 'shap', 'lime', 'visualize', 'summarize'
   method: 'shap'
@@ -43,6 +23,6 @@ xai:
     index_instance_to_explain: [0, 1, 2] # List of indices in data to explain
 
 logging:
-  format: '%(name)s - %(levelname)s - %(message)s'
+  format: '%(message)s'
   level: "INFO"
-  file: "logs/training.log"
+  file: "logs/xai.log"

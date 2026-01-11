@@ -37,12 +37,13 @@ def train_model( # pylint: disable=too-many-arguments, too-many-positional-argum
     """
     # Load model selection
     selected_model = config['selected_model']
-    logger.add_log(f'Trained model: {selected_model}')
 
     if selected_model == MODELS[0]: # NN
-        model_filename = f"model_nn_{target_column}.keras"
+        model_filename = f"nn_model_{target_column}.keras"
+        training_config = config['model_training']['nn']
     elif selected_model == MODELS[1]: # GP
-        model_filename = f"model_gp_{target_column}.pickle"
+        model_filename = f"gp_model_{target_column}.pickle"
+        training_config = config['model_training']['gp']
     else:
         raise UnsupportedModelException(
             f"Unsupported model provided: {selected_model},"
@@ -65,7 +66,7 @@ def train_model( # pylint: disable=too-many-arguments, too-many-positional-argum
 
     # Training the model
     print(f"\nTraining model for target: {target_column}")
-    model.create_and_train_model()
+    model.create_and_train_model(training_config=training_config)
 
     # Stop measuring training time
     end_time = time.time()
@@ -74,6 +75,6 @@ def train_model( # pylint: disable=too-many-arguments, too-many-positional-argum
     model.save_model()
 
     elapsed_time = end_time - start_time
-    logger.add_log(f'Time in seconds taken for training the model: {elapsed_time}')
+    logger.add_log(f'- Training time: {elapsed_time}')
 
     return model

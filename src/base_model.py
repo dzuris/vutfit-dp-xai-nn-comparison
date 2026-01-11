@@ -100,6 +100,8 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
                 self.target_column = y.columns[0]
         if self.y_encoder:
             self.class_names = self.y_encoder.classes_
+        else:
+            self.class_names = None
 
         # Set file where to store/load from model
         self.file_path = os.path.join(folder_path, f"{model_filename}")
@@ -153,11 +155,14 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         raise NotImplementedError("The method 'load_model' must be implemented in a subclass.")
 
     @abstractmethod
-    def create_and_train_model(self):
+    def create_and_train_model(self, training_config: dict):
         """Abstract method for creating and training the model.
 
         This method must be implemented by subclass to define how to create
         and train the model.
+
+        Args:
+            training_config (dict): Model's training configuration.
 
         Raises:
             NotImplementedError: If the method is not implemented in a subclass.

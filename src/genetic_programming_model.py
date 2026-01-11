@@ -9,6 +9,7 @@ import os
 import random
 import functools
 import pickle
+import json
 import operator
 import numpy as np
 import pandas as pd
@@ -40,7 +41,6 @@ class GeneticProgrammingModel(BaseModel):
     This class implements Genetic Programming Model methods.
 
     Attributes:
-        training_config (dict): Configuration for training genetic programming model.
         input_features (list[str]): List of features names.
         pset (gp.PrimitiveSet or gp.PrimitiveSetTypes): Primitive set of functions.
         best_individual (gp.PrimitiveTree): Best trained model.
@@ -85,8 +85,8 @@ class GeneticProgrammingModel(BaseModel):
             folder_path: str = MODELS_FOLDER):
         """Initialize Tree-based Genetic Programming Model.
         
-        The constructor sets model's attributes such as training_config, input_features,
-        retype X values into floats, register fitness functions according to the task type.
+        The constructor sets model's attribute input_features,
+        retype X values into floats and registers fitness functions according to the task type.
         Moreover the initialization of primitive set and toolbox are done here.
 
         Args:
@@ -107,11 +107,6 @@ class GeneticProgrammingModel(BaseModel):
             logger=logger,
             model_filename=model_filename,
             folder_path=folder_path)
-
-        # Sets training config
-        training_config = config['model_training']['gp']
-        self.logger.add_log(f"GP Training configuration: {training_config}")
-        self.training_config = training_config
 
         # Sets input features
         self.input_features = X.columns
@@ -376,12 +371,18 @@ class GeneticProgrammingModel(BaseModel):
         # accuracy only on valid predictions
         return (accuracy_score(y, preds),)
 
-    def create_and_train_model(self):
+    def create_and_train_model(self, training_config: dict):
         """Train the GP Tree-based model.
 
         The function uses eaSimple algorithm from DEAP library for training the model.
         Best individual is in the end saved to the model's best_individual attribute.
+
+        Args:
+            training_config: Model's training configuration.
         """
+
+        # Sets training config
+        self.logger.add_log(f"- GP Training configuration: {training_config}")
 
         # Register evaluation function for this target
         self.toolbox.register(
@@ -392,11 +393,11 @@ class GeneticProgrammingModel(BaseModel):
         )
 
         # Create initial population
-        population_size = self.training_config["population_size"]
+        population_size = training_config["population_size"]
         population = self.toolbox.population(n=population_size) # pylint: disable=no-member
 
         # Elitism settings
-        if self.training_config['elitism']:
+        if training_config['elitism']:
             elite_size = max(1, int(population_size * 0.05))
         else:
             elite_size = 1
@@ -412,9 +413,9 @@ class GeneticProgrammingModel(BaseModel):
         population, _ = algorithms.eaSimple(
             population,
             self.toolbox,
-            cxpb=self.training_config["crossover_pb"],
-            mutpb=self.training_config["mutation_pb"],
-            ngen=self.training_config["generations"],
+            cxpb=training_config["crossover_pb"],
+            mutpb=training_config["mutation_pb"],
+            ngen=training_config["generations"],
             stats=stats,
             halloffame=hof,
             verbose=True
@@ -486,7 +487,7 @@ class GeneticProgrammingModel(BaseModel):
         if self.best_individual is None:
             raise ValueError("No trained model exists. Train the model before summarizing.")
 
-        output_file = f"{TMP_FOLDER}/gp_{self.target_column}_summarization.txt"
+        output_file = f"{TMP_FOLDER}/gp_summarize_{self.target_column}.txt"
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write("Tree-Based GP Model Summary\n")
             f.write("=================================\n\n")
@@ -575,6 +576,9 @@ class GeneticProgrammingModel(BaseModel):
             ValueError: If no model was trained.
             ValueError: If X_train is not pd.DataFrame type.
         """
+
+        os.makedirs(TMP_FOLDER, exist_ok=True)
+
         max_display=10
         background_size = 100
 
@@ -599,6 +603,26 @@ class GeneticProgrammingModel(BaseModel):
 
         # Compute SHAP values
         shap_values = explainer.shap_values(self.X_train.values)
+
+        # Saves shap values and metadata
+        shap_values_filename = f"{TMP_FOLDER}/shap_gp_values.npz"
+        np.savez_compressed(
+            shap_values_filename,
+            shap_values=shap_values,
+            background=background,
+            X_train=self.X_train.values
+        )
+
+        metadata = {
+            "task_type": self.task_type,
+            "feature_names": self.X_train.columns.tolist(),
+            "class_names": self.class_names,
+            "target_column": self.target_column
+        }
+
+        metadata_filename = f"{TMP_FOLDER}/shap_gp_metadata.json"
+        with open(metadata_filename, "w", encoding='utf-8') as f:
+            json.dump(metadata, f, indent=4)
 
         # Summary plot
         shap.summary_plot(shap_values,
@@ -673,7 +697,7 @@ class GeneticProgrammingModel(BaseModel):
 
             # Save the explanation to a file
             explanation_file = os.path.join(
-                TMP_FOLDER, f"lime_explanation_gp_{self.target_column}_{idx}.html"
+                TMP_FOLDER, f"gp_lime_{self.target_column}_{idx}.html"
             )
             explanation.save_to_file(explanation_file)
             print(f"Instance: {idx}")

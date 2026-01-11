@@ -67,7 +67,7 @@ def validate_configuration(config: dict):
             raise ValueError("For classification only one target column is allowed!")
 
 
-def main():
+def main(): # pylint: disable=too-many-locals
     """Main program function for generating the model.
     
     Runs loading config, validating config, preprocessing, training and obtaining loss values.
@@ -99,10 +99,13 @@ def main():
     # -----------------------------------------
     # Create Logger
     # -----------------------------------------
-    logger = LoggerHandler(config['logging'], "MainLogger")
-
-    # Log current running file
-    logger.add_log(f'File: {Path(config['data']['dataset_path']).name}')
+    dataset_file_name = Path(config['data']['dataset_path']).name
+    logger = LoggerHandler(
+        config=config['logging'],
+        logger_name="MainLogger",
+        file=dataset_file_name,
+        model_type=config['selected_model'],
+        program_type="Training")
 
     # -----------------------------------------
     # Load dataset and split it into train and test sets
@@ -117,6 +120,7 @@ def main():
     models = {}
     target_columns = config['data']['target_columns']
     for target_column in target_columns:
+        logger.add_log(f"Target column: '{target_column}'")
         model = train_model(
             X=X,
             y=y[target_column],
@@ -132,15 +136,20 @@ def main():
     # -----------------------------------------
     print("\nPredicting...")
     selected_loss = config['loss_function']
-    logger.add_log(f'Loss function: {selected_loss}')
-    print(f"Loss function: {selected_loss}")
+    log_loss_func = f"Loss function: '{selected_loss}'"
+    log_loss_values_title = 'Loss values:'
+    logger.add_log(log_loss_func)
+    logger.add_log(log_loss_values_title)
+    print(log_loss_func)
+    print(log_loss_values_title)
     for target_column in target_columns:
         model = models[target_column]
         loss = model.get_model_loss()
 
         # Log results
-        logger.add_log(f'Loss on test data for target column {target_column}: {loss}')
-        print(f'Loss on test data for target column {target_column}: {loss}')
+        log_target_column_loss = f'- {target_column}: {loss}'
+        logger.add_log(log_target_column_loss)
+        print(log_target_column_loss)
 
     print("\n--- SUCCESSFUL RUN ---")
 

@@ -3,6 +3,7 @@
 This module contains implementation of Neural Network Model that is a subclass of BaseModel.
 """
 import os
+import json
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -23,7 +24,6 @@ class NeuralNetworkModel(BaseModel):
     This class implements Neural Network Model methods.
 
     Attributes:
-        training_config (dict): Configuration for training Neural Network.
         model (Sequential): The Neural Network model.
 
     Methods:
@@ -56,7 +56,7 @@ class NeuralNetworkModel(BaseModel):
         """
         Neural Network model constructor.
 
-        Sets training configuration attribute and initializes the model.
+        Initializes the model.
 
         Args:
             X (pd.DataFrame): Dataset features.
@@ -75,9 +75,6 @@ class NeuralNetworkModel(BaseModel):
             logger=logger,
             model_filename=model_filename,
             folder_path=folder_path)
-        training_config = config['model_training']['nn']
-        self.logger.add_log(f"NN Training configuration: {training_config}")
-        self.training_config = training_config
         self.model = None
 
     def save_model(self):
@@ -95,26 +92,33 @@ class NeuralNetworkModel(BaseModel):
 
         self.model = tf.keras.models.load_model(self.file_path) # pylint: disable=no-member
 
-    def create_and_train_model(self): # pylint: disable=too-many-arguments, too-many-positional-arguments, arguments-differ
+    def create_and_train_model(self, training_config: dict): # pylint: disable=too-many-arguments, too-many-positional-arguments, arguments-differ
         """
         Create and train a single-output neural network model.
+
+        Args:
+            training_config: Model's training configuration.
 
         Raises:
             ValueError: If unsupported optimizer is provided in configuration for nn
                 optimizer ('adam' or 'sgd' are valid values). Or unsupported type is
                 provided ('regression' or 'classification' are valid values).
         """
+
+        # Log the training configuration
+        self.logger.add_log(f"- NN Training configuration: {training_config}")
+
         self.model = Sequential()
 
         # Input layer
         self.model.add(tf.keras.Input(shape=(self.X_train.shape[1],))) # pylint: disable=no-member
 
         # Hidden Layers
-        for _ in range(self.training_config['hidden_layers']):
+        for _ in range(training_config['hidden_layers']):
             self.model.add(
-                Dense(self.training_config['hidden_units'],
-                      activation=self.training_config['activation_function']))
-            self.model.add(Dropout(self.training_config['dropout_rate']))
+                Dense(training_config['hidden_units'],
+                      activation=training_config['activation_function']))
+            self.model.add(Dropout(training_config['dropout_rate']))
 
         # Output Layer
         if self.task_type == TASK_TYPES[0]: # regression
@@ -141,8 +145,8 @@ class NeuralNetworkModel(BaseModel):
             raise ValueError(f"Unsupported task type: {self.task_type}")
 
         # Set optimizer
-        opt_name = self.training_config["optimizer"]
-        lr = self.training_config["learning_rate"]
+        opt_name = training_config["optimizer"]
+        lr = training_config["learning_rate"]
         if opt_name == 'adam':
             optimizer = Adam(learning_rate=lr)
         elif opt_name == 'sgd':
@@ -161,10 +165,10 @@ class NeuralNetworkModel(BaseModel):
 
         self.model.fit(self.X_train,
                        self.y_train,
-                       epochs=self.training_config['epochs'],
-                       batch_size=self.training_config['batch_size'],
+                       epochs=training_config['epochs'],
+                       batch_size=training_config['batch_size'],
                        validation_data=(self.X_test, self.y_test),
-                       verbose=self.training_config['print_train_logs'],
+                       verbose=training_config['print_train_logs'],
                        callbacks=[tensorboard_cb])
 
     def predict(self, X=None) -> np.ndarray:
@@ -214,7 +218,7 @@ class NeuralNetworkModel(BaseModel):
         """
 
         # Sets output file
-        output_file = f"{TMP_FOLDER}/nn_{self.target_column}_summarization.txt"
+        output_file = f"{TMP_FOLDER}/nn_summarize_{self.target_column}.txt"
 
         with open(output_file, "w", encoding='utf-8') as f:
             f.write("Neural Network Summary:\n")
@@ -293,6 +297,8 @@ class NeuralNetworkModel(BaseModel):
     def explain_shap(self):
         """Explains the model using SHAP explainer."""
 
+        os.makedirs(TMP_FOLDER, exist_ok=True)
+
         # Background sample for KernelExplainer
         background = self.X_train.sample(100, random_state=42).values
 
@@ -309,13 +315,33 @@ class NeuralNetworkModel(BaseModel):
             return preds
 
         # Initialize SHAP explainer
-        explainer = shap.KernelExplainer(
-            predict_fn,
-            background
-        )
+        explainer = shap.KernelExplainer(predict_fn, background)
 
         # Calculate SHAP values
         shap_values = explainer.shap_values(self.X_train.values)
+
+        # Saves shap values and metadata
+        shap_values_filename = f"{TMP_FOLDER}/nn_shap_values.npz"
+        np.savez_compressed(
+            shap_values_filename,
+            shap_values=shap_values,
+            background=background,
+            X_train=self.X_train.values
+        )
+
+        metadata = {
+            "task_type": self.task_type,
+            "feature_names": self.X_train.columns.tolist(),
+            "class_names": self.class_names,
+            "target_column": self.target_column
+        }
+
+        metadata_filename = f"{TMP_FOLDER}/nn_shap_metadata.json"
+        with open(metadata_filename, "w", encoding='utf-8') as f:
+            json.dump(metadata, f, indent=4)
+
+        print(f"SHAP values saved to: {shap_values_filename}")
+        print(f"Metadata saved to: {metadata_filename}")
 
         # --- Regression or Binary Classification ---
         if self.task_type == TASK_TYPES[0] or (
@@ -385,7 +411,7 @@ class NeuralNetworkModel(BaseModel):
 
             # Save the explanation to a file
             explanation_file = os.path.join(
-                TMP_FOLDER, f"lime_explanation_nn_{self.target_column}_{inst}.html"
+                TMP_FOLDER, f"nn_lime_{self.target_column}_{inst}.html"
             )
             explanation.save_to_file(explanation_file)
             print(f"Instance: {inst}")

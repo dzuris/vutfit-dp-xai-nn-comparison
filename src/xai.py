@@ -2,7 +2,9 @@
 
 This module loads the model and explain it.
 """
+import time
 import argparse
+from pathlib import Path
 from src.i_model import get_model
 from src.utils import load_config
 from src.preprocess import load_and_preprocess_data
@@ -31,8 +33,19 @@ def main():
     print('Config loaded...')
 
     # Create Logger
-    logger = LoggerHandler(config['logging'], "XAILogger")
+    dataset_file_name = Path(config['data']['dataset_path']).name
+    logger = LoggerHandler(
+        config=config['logging'],
+        logger_name="XAILogger",
+        file=dataset_file_name,
+        model_type=config['selected_model'],
+        program_type='XAI'
+    )
     print('Logger created...')
+
+    # Obtain XAI method for logging
+    selected_method_xai = config['xai']['method']
+    logger.add_log(f"Selected XAI method: '{selected_method_xai}'")
 
     # -------------------------
     # Load and preprocess the data
@@ -51,6 +64,7 @@ def main():
             f"The taregt column '{target_column}' does not exist in the provided data, "
             f"possible target column options: {y.columns.values}."
         )
+    logger.add_log(f"Target column: '{target_column}'")
 
     model = get_model(
         selected_model=config['selected_model'],
@@ -69,12 +83,15 @@ def main():
     # -------------------------
     # Obtain selected XAI method (e.g. SHAP, LIME, etc)
     print("Explaining the model...")
-    selected_method_xai = config['xai']['method']
+    # Measure explaining time
+    start_time = time.time()
+
     try:
         if selected_method_xai == XAI_METHODS[0]: # shap
             model.explain_shap()
         elif selected_method_xai == XAI_METHODS[1]: # lime
-            model.explain_lime(config['xai']['lime']['index_instance_to_explain'])
+            instances_to_explain = config['xai']['lime']['index_instance_to_explain']
+            model.explain_lime(instances=instances_to_explain)
         elif selected_method_xai == XAI_METHODS[2]: # visualize
             model.visualize_model()
         elif selected_method_xai == XAI_METHODS[3]: # summarize
@@ -92,6 +109,10 @@ def main():
             f"Unsupported XAI method: '{selected_method_xai}', "
             f"for task type: '{config['selected_model']}'."
             ) from exc
+
+    # Stop measuring explaining time
+    end_time = time.time()
+    logger.add_log(f"Explaining time: {end_time - start_time}")
 
     print('MODEL SUCCESSFULLY EXPLAINED!')
 
