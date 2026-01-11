@@ -144,7 +144,6 @@ class GeneticProgrammingModel(BaseModel):
             self.pset = self._initialize_pset_classification()
 
         # Initialize model's toolbox
-        self.max_depth = config['model_training']['gp']['max_depth']
         self.toolbox = self._initialize_toolbox()
 
     def _initialize_pset_regression(self) -> gp.PrimitiveSet:
@@ -274,8 +273,9 @@ class GeneticProgrammingModel(BaseModel):
         toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=self.pset) # pylint: disable=no-member
 
         # Add limit tree height to avoid bloat
-        toolbox.decorate("mate", gp.staticLimit(key=len, max_value=self.max_depth))
-        toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=self.max_depth))
+        max_depth = 20
+        toolbox.decorate("mate", gp.staticLimit(key=len, max_value=max_depth))
+        toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=max_depth))
 
         return toolbox
 
