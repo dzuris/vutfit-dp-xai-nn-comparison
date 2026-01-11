@@ -14,6 +14,7 @@ import operator
 import numpy as np
 import pandas as pd
 import shap
+import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import LabelEncoder
 from lime.lime_tabular import LimeTabularExplainer
@@ -143,6 +144,7 @@ class GeneticProgrammingModel(BaseModel):
             self.pset = self._initialize_pset_classification()
 
         # Initialize model's toolbox
+        self.max_depth = config['model_training']['gp']['max_depth']
         self.toolbox = self._initialize_toolbox()
 
     def _initialize_pset_regression(self) -> gp.PrimitiveSet:
@@ -272,8 +274,8 @@ class GeneticProgrammingModel(BaseModel):
         toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=self.pset) # pylint: disable=no-member
 
         # Add limit tree height to avoid bloat
-        toolbox.decorate("mate", gp.staticLimit(key=len, max_value=20))
-        toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=20))
+        toolbox.decorate("mate", gp.staticLimit(key=len, max_value=self.max_depth))
+        toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=self.max_depth))
 
         return toolbox
 
@@ -487,60 +489,37 @@ class GeneticProgrammingModel(BaseModel):
         if self.best_individual is None:
             raise ValueError("No trained model exists. Train the model before summarizing.")
 
-        output_file = f"{TMP_FOLDER}/gp_summarize_{self.target_column}.txt"
+        output_file = f"{TMP_FOLDER}/gp_summarize_{self.target_column}.json"
+        gp_summary = {
+            "target_column": self.target_column,
+            "best_tree": str(self.best_individual),
+            "number_of_nodes": len(self.best_individual),
+            "depth": self.best_individual.height,
+            "rules": _extract_rules(self.best_individual),
+            "avg_branching_factor": 0, # placeholder, calculated below
+            "loss_func": {
+                "name": self.selected_loss,
+                "value": self.get_model_loss()
+            }
+        }
+
+        # Average branching factor
+        branching_factors = [
+            child.arity
+            for child in self.best_individual
+            if isinstance(child, gp.Primitive)
+        ]
+
+        if branching_factors:
+            avg_branching_factor = sum(branching_factors) / len(branching_factors)
+        else:
+            avg_branching_factor = 0
+        gp_summary["avg_branching_factor"] = round(avg_branching_factor, 2)
+
         with open(output_file, 'w', encoding='utf-8') as f:
-            f.write("Tree-Based GP Model Summary\n")
-            f.write("=================================\n\n")
+            json.dump(gp_summary, f, indent=4)
 
-            tree = self.best_individual
-            f.write(f"Target Variable: {self.target_column}\n")
-            f.write("-----------------------------\n")
-
-            # Print the tree
-            f.write("Best tree:\n")
-            f.write(f"{tree}\n")
-            f.write("-----------------------------\n")
-
-            # Number of nodes
-            num_nodes = len(tree)
-            f.write(f"Number of nodes: {num_nodes}\n")
-
-            # Tree depth
-            tree_depth = tree.height
-            f.write(f"Tree depth: {tree_depth}\n")
-            f.write("-----------------------------\n")
-
-            # Extract rules
-            rules = _extract_rules(tree)
-            f.write(f"Number of rules: {len(rules)}\n")
-            f.write("Rules:\n")
-            for rule in rules:
-                f.write(f"\t{rule}\n")
-            f.write("-----------------------------\n")
-
-            # Average branching factor
-            branching_factors = [
-                child.arity
-                for child in tree
-                if isinstance(child, gp.Primitive)
-            ]
-
-            if branching_factors:
-                avg_branching_factor = sum(branching_factors) / len(branching_factors)
-            else:
-                avg_branching_factor = 0
-            f.write(f"Average branching factors: {avg_branching_factor:.2f}\n")
-            f.write("-----------------------------\n")
-
-            # Loss function
-            selected_loss_name = self.selected_loss
-            loss = self.get_model_loss()
-            f.write(f"Selected loss function name: {selected_loss_name}\n")
-            f.write(f"Loss function: {loss}\n")
-
-            f.write("\n")
-
-        print("Summary saved successfully.")
+        print(f"Tree-basde GP model summary saved to {output_file}.")
 
     def visualize_model(self):
         """
@@ -564,7 +543,7 @@ class GeneticProgrammingModel(BaseModel):
         _add_nodes_edges(root, tree=self.best_individual, dot=dot)
 
         # Optionally render the graph to a file
-        output_file = f"{TMP_FOLDER}/{self.target_column}_tree"
+        output_file = f"{TMP_FOLDER}/gp_visualize_{self.target_column}"
         dot.render(output_file, format='png', cleanup=True)
         print(f"Visualization for {self.target_column} saved to {output_file}.png")
 
@@ -605,7 +584,7 @@ class GeneticProgrammingModel(BaseModel):
         shap_values = explainer.shap_values(self.X_train.values)
 
         # Saves shap values and metadata
-        shap_values_filename = f"{TMP_FOLDER}/shap_gp_values.npz"
+        shap_values_filename = f"{TMP_FOLDER}/gp_shap_values.npz"
         np.savez_compressed(
             shap_values_filename,
             shap_values=shap_values,
@@ -620,15 +599,27 @@ class GeneticProgrammingModel(BaseModel):
             "target_column": self.target_column
         }
 
-        metadata_filename = f"{TMP_FOLDER}/shap_gp_metadata.json"
+        metadata_filename = f"{TMP_FOLDER}/gp_shap_metadata.json"
         with open(metadata_filename, "w", encoding='utf-8') as f:
             json.dump(metadata, f, indent=4)
 
+        print(f"SHAP values saved to: {shap_values_filename}")
+        print(f"Metadata saved to: {metadata_filename}")
+
         # Summary plot
-        shap.summary_plot(shap_values,
-                            self.X_train,
-                            feature_names=self.X_train.columns,
-                            max_display=max_display)
+        shap.summary_plot(
+            shap_values,
+            features=self.X_train,
+            feature_names=self.X_train.columns,
+            max_display=max_display,
+            show=False
+        )
+        figure_file = f"{TMP_FOLDER}/gp_shap_figure_{self.target_column}.png"
+        plt.title(f"SHAP Summary Plot — Target: {self.target_column}")
+        plt.tight_layout()
+        plt.savefig(figure_file)
+        plt.show()
+        print(f"SHAP figure saved to: {figure_file}")
 
     def explain_lime(self, instances):
         """
@@ -704,6 +695,22 @@ class GeneticProgrammingModel(BaseModel):
             print(f"- Saved to {explanation_file}")
             print(f"\n- X Data:\n{self.X_train.iloc[idx]}")
             print(f"\n- Y True:\n{self.y_train.iloc[idx]}")
+
+            # Convert explanation to a dictionary
+            explanation_dict = {
+                "instance": idx,
+                "target_column": self.target_column,
+                "explanation": explanation.as_list(),
+                "class_names": self.class_names,
+                "data_row": self.X_train.iloc[idx].to_dict(),
+                "target": self.y_train.iloc[idx]
+            }
+
+            json_file = os.path.join(TMP_FOLDER, f"gp_lime_{self.target_column}_{idx}.json")
+            with open(json_file, "w", encoding='utf-8') as f:
+                json.dump(explanation_dict, f, indent=4)
+
+            print(f"- Saved JSON explanation to: {json_file}")
             print('-----------------------------------')
 
 

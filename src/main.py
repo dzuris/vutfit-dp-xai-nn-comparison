@@ -74,7 +74,8 @@ def main(): # pylint: disable=too-many-locals
     """
     # Create argument parser
     parser = argparse.ArgumentParser(
-        description='Program for getting explanations from the model.')
+        description='Program for getting explanations from the model.'
+    )
     parser.add_argument(
         '--config', type=str, default='config.yaml', help='Path to the configuration file'
     )

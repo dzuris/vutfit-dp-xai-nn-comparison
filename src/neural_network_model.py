@@ -51,7 +51,7 @@ class NeuralNetworkModel(BaseModel):
             y_encoder: LabelEncoder,
             config: dict,
             logger: LoggerHandler,
-            model_filename: str = "nn_trained_model.keras",
+            model_filename: str,
             folder_path: str = MODELS_FOLDER):
         """
         Neural Network model constructor.
@@ -208,7 +208,7 @@ class NeuralNetworkModel(BaseModel):
     # --- EXPLAINING FUNCTIONS ---
     def get_model_summary(self):
         """
-        Saves a summary of the neural network model for interpretability into a file.
+        Saves a summary of the neural network model for interpretability into a json file.
 
         Includes:
         - Model architecture (layers, neurons, activation functions).
@@ -218,38 +218,45 @@ class NeuralNetworkModel(BaseModel):
         """
 
         # Sets output file
-        output_file = f"{TMP_FOLDER}/nn_summarize_{self.target_column}.txt"
+        output_file = f"{TMP_FOLDER}/nn_summarize_{self.target_column}.json"
+
+        # Create a dictionary to store the summary
+        nn_summary = {
+            "nn_architecture": {
+                "num_of_layers": len(self.model.layers),
+                "layers": []
+            },
+            "network_parameters": {
+                "total_trainable_parameters": self.model.count_params(),
+                "loss_function": self.model.loss,
+                "optimizer": self.model.optimizer.name,
+                "lr": float(self.model.optimizer.learning_rate.numpy())
+            },
+            "loss_value": {
+                "selected_loss_name": self.selected_loss,
+                "loss_value": self.get_model_loss()
+            }
+        }
+
+        # Add layer details
+        for i, layer in enumerate(self.model.layers):
+            layer_info = {
+                "layer": i + 1,
+                "name": layer.name,
+                "type": type(layer).__name__
+            }
+            if hasattr(layer, 'units'):
+                layer_info["neurons"] = layer.units
+            if hasattr(layer, 'activation'):
+                layer_info["activation"] = layer.activation.__name__
+            if hasattr(layer, 'rate'):
+                layer_info["dropout_rate"] = layer.rate
+            nn_summary["nn_architecture"]["layers"].append(layer_info)
 
         with open(output_file, "w", encoding='utf-8') as f:
-            f.write("Neural Network Summary:\n")
-            f.write("=======================\n")
+            json.dump(nn_summary, f, indent=4)
 
-            # Network architecture
-            f.write(f"Number of layers: {len(self.model.layers)}\n")
-            for i, layer in enumerate(self.model.layers):
-                f.write(f"Layer {i+1}: {layer.name}\n")
-                f.write(f"\tType: {type(layer).__name__}\n")
-                if hasattr(layer, 'units'):
-                    f.write(f"\tNeurons: {layer.units}\n")
-                if hasattr(layer, 'activation'):
-                    f.write(f"\tActivation: {layer.activation.__name__}\n")
-                if hasattr(layer, 'rate'):
-                    f.write(f"\tDropout Rate: {layer.rate}\n")
-
-            # Network parameters
-            f.write(f"\nTotal trainable parameters: {self.model.count_params()}\n")
-            f.write(f"Loss function: {self.model.loss}\n")
-            f.write(f"Optimizer: {self.model.optimizer.name}\n")
-            f.write(f"Learning rate: {self.model.optimizer.learning_rate.numpy()}\n")
-
-            # Loss value
-            loss = self.get_model_loss()
-            f.write("\n --- LOSS VALUE ---\n")
-            f.write(f"Selected loss function name: {self.selected_loss}\n")
-            f.write(f"Loss function: {loss}\n")
-            f.write("\n")
-
-        print(f"Neural network summary saved to {output_file}.")
+        print(f"Neural network summary saved into {output_file}.")
 
     def visualize_model(self):
         """
@@ -347,6 +354,7 @@ class NeuralNetworkModel(BaseModel):
         if self.task_type == TASK_TYPES[0] or (
             self.task_type == TASK_TYPES[1] and self.model.output_shape[1] == 1
         ):
+            figure_file = f"{TMP_FOLDER}/nn_shap_figure_{self.target_column}.png"
             shap.summary_plot(
                 shap_values,
                 features=self.X_train,
@@ -355,13 +363,16 @@ class NeuralNetworkModel(BaseModel):
             )
             plt.title(f"SHAP Summary Plot — Target: {self.target_column}\n")
             plt.tight_layout()
+            plt.savefig(figure_file)
             plt.show()
+            print(f"SHAP figure saved to: {figure_file}")
             return
 
         # --- Multi-class classification ---
         if self.task_type == TASK_TYPES[1] and self.model.output_shape[1] > 1:
             shap_values = np.transpose(shap_values, (2, 0, 1))
             for i, class_name in enumerate(self.class_names):
+                figure_file = f"{TMP_FOLDER}/nn_shap_figure_{self.target_column}_{class_name}.png"
                 shap.summary_plot(
                     shap_values[i],
                     features=self.X_train.values,
@@ -370,6 +381,7 @@ class NeuralNetworkModel(BaseModel):
                 )
                 plt.title(f"SHAP Summary Plot - Class: {class_name}")
                 plt.tight_layout()
+                plt.savefig(figure_file)
                 plt.show()
 
     def explain_lime(self, instances):
@@ -418,4 +430,21 @@ class NeuralNetworkModel(BaseModel):
             print(f"- Saved to: {explanation_file}")
             print(f"\n- Data:\n{self.X_train.iloc[inst]}")
             print(f"\n- Target:\n{self.y_train.iloc[inst]}")
+
+            # Convert explanation to a dictionary
+            explanation_dict = {
+                "instance": inst,
+                "target_column": self.target_column,
+                "explanation": explanation.as_list(),
+                "class_names": self.class_names,
+                "data_row": self.X_train.iloc[inst].to_dict(),
+                "target": self.y_train.iloc[inst]
+            }
+
+            # Save the explanation as a JSON file
+            json_file = os.path.join(TMP_FOLDER, f"nn_lime_{self.target_column}_{inst}.json")
+            with open(json_file, "w", encoding='utf-8') as f:
+                json.dump(explanation_dict, f, indent=4)
+
+            print(f"- Saved JSON explanation to: {json_file}")
             print('-----------------------------------')

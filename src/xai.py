@@ -76,7 +76,7 @@ def main():
         model_filename=config['xai']['model_filename_to_explain']
     )
     model.load_model()
-    print('Model loaded...')
+    print('Model loaded.')
 
     # -------------------------
     # XAI
