@@ -307,7 +307,8 @@ class NeuralNetworkModel(BaseModel):
         os.makedirs(TMP_FOLDER, exist_ok=True)
 
         # Background sample for KernelExplainer
-        background = self.X_train.sample(100, random_state=42).values
+        background = self.X_train.sample(n=min(100, len(self.X_train)),
+                                            random_state=42).values
 
         # SHAP prediction wrapper
         def predict_fn(X):

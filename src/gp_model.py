@@ -123,14 +123,12 @@ class GeneticProgrammingModel(BaseModel):
 
             if "Individual" not in creator.__dict__:
                 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMin) # pylint: disable=no-member
-            self.pset = self._initialize_pset_regression()
         elif self.task_type == TASK_TYPES[1]:   # classification
             if "FitnessMin" not in creator.__dict__:
                 creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 
             if "Individual" not in creator.__dict__:
                 creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax) # pylint: disable=no-member
-            self.pset = self._initialize_pset_classification()
         else:
             raise UnsupportedTaskTypeException(f"Unsupported task type: {self.task_type}!")
 
