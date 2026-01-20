@@ -201,7 +201,8 @@ good-names=i,
            X,
            X_train,
            X_test,
-           X_encoded
+           X_encoded,
+           X_array
 
 # Good variable names regexes, separated by a comma. If names match any regex,
 # they will always be accepted

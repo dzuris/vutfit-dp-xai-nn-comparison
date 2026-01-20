@@ -26,6 +26,9 @@ xai:
 sls:
 	$(INTERPRETER) -m src.sls.main --config $(CONFIG_FILE_TXTEXP)
 
+test-sls:
+	$(INTERPRETER) -m src.sls.test_sls
+
 clean:
 	@echo "Cleaning directories \"$(LOGS_DIR) $(MODELS_DIR) $(TMP_DIR)\"..."
 	@rm -rf $(LOGS_DIR)/*

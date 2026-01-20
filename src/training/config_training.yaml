@@ -11,7 +11,7 @@ data:
   test_size: 0.2
   random_state: 42
 
-selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
+selected_model: NeuralNetwork # Options: 'NeuralNetwork', 'GeneticProgramming'
 loss_function: mse # Options: regression: 'mae', 'mse', classification: 'accuracy', 'log_loss'
 
 model_training:

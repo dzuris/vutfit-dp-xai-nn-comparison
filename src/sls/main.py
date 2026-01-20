@@ -4,12 +4,8 @@ from src.utils import load_config
 from src.sls.sls_model import SlsExplainer
 
 
-def main():
-    """Script for generating text explanation for already explained data.
-
-    The program uses techniques SHAP, LIME and summarization for generating
-    text explanation about the model targeting non-experts.
-    """
+def basic_explanation():
+    """Generate basic explanation using default configuration."""
 
     # Create argument parser
     parser = argparse.ArgumentParser(
@@ -26,7 +22,16 @@ def main():
     config = load_config(args.config)
 
     # Initialize explanation
-    _ = SlsExplainer(config)
+    explainer = SlsExplainer(config)
+    explanation = explainer.get_explanation()
+
+    print(explanation)
+    print("\n✓ Explanation saved to:", config['output_folder'] + "/" + config['output_filename'])
 
 if __name__ == "__main__":
-    main()
+    # Run explanation
+    basic_explanation()
+
+    print("\n" + "=" * 70)
+    print("✓ All examples completed!")
+    print("=" * 70)

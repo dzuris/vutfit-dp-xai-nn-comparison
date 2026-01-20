@@ -306,11 +306,7 @@ class NeuralNetworkModel(BaseModel):
 
         os.makedirs(TMP_FOLDER, exist_ok=True)
 
-        # Background sample for KernelExplainer
-        background = self.X_train.sample(n=min(100, len(self.X_train)),
-                                            random_state=42).values
-
-        # SHAP prediction wrapper
+        # Define prediction function
         def predict_fn(X):
             X = np.array(X)
             preds = self.model.predict(X)
@@ -322,34 +318,15 @@ class NeuralNetworkModel(BaseModel):
             # Multi-class -> (n, C)
             return preds
 
-        # Initialize SHAP explainer
-        explainer = shap.KernelExplainer(predict_fn, background)
-
-        # Calculate SHAP values
-        shap_values = explainer.shap_values(self.X_train.values)
-
-        # Saves shap values and metadata
-        shap_values_filename = f"{TMP_FOLDER}/nn_shap_values.npz"
-        np.savez_compressed(
-            shap_values_filename,
-            shap_values=shap_values,
-            background=background,
-            X_train=self.X_train.values
+        # Calculate shap values
+        shap_values = self.calculate_shap_values(
+            X=self.X_train,
+            predict_fn=predict_fn,
+            task_type=self.task_type,
+            model_type="nn",
+            target_column=self.target_column,
+            class_names=self.target_column
         )
-
-        metadata = {
-            "task_type": self.task_type,
-            "feature_names": self.X_train.columns.tolist(),
-            "class_names": self.class_names,
-            "target_column": self.target_column
-        }
-
-        metadata_filename = f"{TMP_FOLDER}/nn_shap_metadata.json"
-        with open(metadata_filename, "w", encoding='utf-8') as f:
-            json.dump(metadata, f, indent=4)
-
-        print(f"SHAP values saved to: {shap_values_filename}")
-        print(f"Metadata saved to: {metadata_filename}")
 
         # --- Regression or Binary Classification ---
         if self.task_type == TASK_TYPES[0] or (
@@ -384,6 +361,7 @@ class NeuralNetworkModel(BaseModel):
                 plt.tight_layout()
                 plt.savefig(figure_file)
                 plt.show()
+                print(f"SHAP figure saved to: {figure_file}")
 
     def explain_lime(self, instances):
         """

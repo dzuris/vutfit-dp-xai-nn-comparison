@@ -551,13 +551,9 @@ class GeneticProgrammingModel(BaseModel):
 
         Raises:
             ValueError: If no model was trained.
-            ValueError: If X_train is not pd.DataFrame type.
         """
 
         os.makedirs(TMP_FOLDER, exist_ok=True)
-
-        max_display=10
-        background_size = 100
 
         if self.best_individual is None:
             raise ValueError(f"No trained model for target `{self.target_column}`")
@@ -567,49 +563,53 @@ class GeneticProgrammingModel(BaseModel):
 
         # Define prediction function
         def predict_fn(X):
-            if isinstance(self.X_train, pd.DataFrame):
-                return np.array([func(*x) for x in X]) # pylint: disable=W0640
-            raise ValueError("X_train must be a pandas DataFrame")
+            """Make predictions using the compiled GP function.
+            
+            Args:
+                X: Input features as DataFrame or numpy array
+                
+            Returns:
+                np.ndarray: Predictions for each row in X
+                
+            Raises:
+                TypeError: If X is neither DataFrame nor numpy array
+                RuntimeError: If prediction fails for a row
+            """
+            # Convert to numpy array if needed
+            if isinstance(X, pd.DataFrame):
+                X_array = X.values
+            elif isinstance(X, np.ndarray):
+                X_array = X
+            else:
+                raise TypeError("X must be a pandas DataFrame or numpy array")
 
-        # Background data (sampled subset of training data)
-        background = self.X_train.sample(n=min(background_size, len(self.X_train)),
-                                            random_state=42).values
+            # Apply GP function to each row with error handling
+            predictions = []
+            for row in X_array:
+                try:
+                    pred = func(*row)
+                    predictions.append(pred)
+                except Exception as e:
+                    raise RuntimeError(f"Error predicting row {len(predictions)}: {e}") from e
 
-        # Initialize SHAP Kernel Explainer
-        explainer = shap.KernelExplainer(predict_fn, background)
+            return np.array(predictions)
 
-        # Compute SHAP values
-        shap_values = explainer.shap_values(self.X_train.values)
-
-        # Saves shap values and metadata
-        shap_values_filename = f"{TMP_FOLDER}/gp_shap_values.npz"
-        np.savez_compressed(
-            shap_values_filename,
-            shap_values=shap_values,
-            background=background,
-            X_train=self.X_train.values
+        # Calculate shap values
+        shap_values = self.calculate_shap_values(
+            X=self.X_train,
+            predict_fn=predict_fn,
+            task_type=self.task_type,
+            model_type="gp",
+            target_column=self.target_column,
+            class_names=self.target_column
         )
-
-        metadata = {
-            "task_type": self.task_type,
-            "feature_names": self.X_train.columns.tolist(),
-            "class_names": self.class_names,
-            "target_column": self.target_column
-        }
-
-        metadata_filename = f"{TMP_FOLDER}/gp_shap_metadata.json"
-        with open(metadata_filename, "w", encoding='utf-8') as f:
-            json.dump(metadata, f, indent=4)
-
-        print(f"SHAP values saved to: {shap_values_filename}")
-        print(f"Metadata saved to: {metadata_filename}")
 
         # Summary plot
         shap.summary_plot(
             shap_values,
             features=self.X_train,
             feature_names=self.X_train.columns,
-            max_display=max_display,
+            max_display=10,
             show=False
         )
         figure_file = f"{TMP_FOLDER}/gp_shap_figure_{self.target_column}.png"

@@ -1,10 +1,10 @@
 output_filename: "txtexpl.txt"
 output_folder: "tmp"
-model_type: "nn" # Options: 'nn' and 'gp'
+model_type: "gp" # Options: 'nn' and 'gp'
 shap:
-  file: "tmp/nn_shap_values.npz"
-  metadata_file: "nn_shap_metadata.json"
+  file: "tmp/gp_shap_values_Y1.npz"
+  metadata_file: "tmp/gp_shap_metadata_Y1.json"
 lime:
-  files: ["tmp/nn_lime_Y1_0.json", "tmp/nn_lime_Y1_1.json", "tmp/nn_lime_Y1_2.json"]
+  file: "tmp/gp_lime_Y1_0.json"
 summarization:
-  file: "tmp/nn_summarize_Y1.json"
+  file: "tmp/gp_summarize_Y1.json"
