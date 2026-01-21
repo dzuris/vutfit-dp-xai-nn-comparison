@@ -271,10 +271,12 @@ class NeuralNetworkModel(BaseModel):
         """
         weights, _ = self.model.layers[0].get_weights()
 
+        figure_file = f"{TMP_FOLDER}/nn_visualize_layer1_weights_{self.target_column}.png"
         plt.imshow(weights, aspect='auto', cmap='viridis')
         plt.colorbar()
         plt.title("Layer 1 Weights")
-        plt.show()
+        plt.savefig(figure_file)
+        plt.close()
 
         _ = self.model(self.X_test[:1])
 
@@ -293,13 +295,18 @@ class NeuralNetworkModel(BaseModel):
         activations = activation_model.predict(x_sample)
 
         for i, act in enumerate(activations[:-1]): # exclude output layer
+            figure_file = (
+                f"{TMP_FOLDER}/"
+                f"nn_visualize_hidden_layer_{i+1}_activations_{self.target_column}.png"
+            )
             plt.figure(figsize=(8, 2.5))
             plt.imshow(act, aspect='auto', cmap='viridis')
             plt.colorbar(label="Activation value")
             plt.title(f"Hidden Layer {i+1} Activations")
             plt.yticks([]) # one sample
             plt.xlabel("Neuron index")
-            plt.show()
+            plt.savefig(figure_file)
+            plt.close()
 
     def explain_shap(self):
         """Explains the model using SHAP explainer."""
@@ -342,7 +349,7 @@ class NeuralNetworkModel(BaseModel):
             plt.title(f"SHAP Summary Plot — Target: {self.target_column}\n")
             plt.tight_layout()
             plt.savefig(figure_file)
-            plt.show()
+            plt.close()
             print(f"SHAP figure saved to: {figure_file}")
             return
 

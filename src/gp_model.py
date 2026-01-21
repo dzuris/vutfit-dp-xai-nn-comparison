@@ -616,7 +616,7 @@ class GeneticProgrammingModel(BaseModel):
         plt.title(f"SHAP Summary Plot — Target: {self.target_column}")
         plt.tight_layout()
         plt.savefig(figure_file)
-        plt.show()
+        plt.close()
         print(f"SHAP figure saved to: {figure_file}")
 
     def explain_lime(self, instances):

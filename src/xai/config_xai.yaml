@@ -11,15 +11,15 @@ data:
   test_size: 0.2
   random_state: 42
 
-selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
+selected_model: NeuralNetwork # Options: 'NeuralNetwork', 'GeneticProgramming'
 loss_function: mse # Options: regression: 'mae', 'mse', classification: 'accuracy', 'log_loss'
 
 xai:
   # model filename must match dataset in data config
-  model_filename_to_explain: "gp_model_Y1.pickle"
+  model_filename_to_explain: "nn_model_Y1.keras"
   model_target_column_name: "Y1"
   # Method options for both nn and gp: 'shap', 'lime', 'visualize', 'summarize'
-  method: 'summarize'
+  method: 'visualize'
   lime:
     index_instance_to_explain: [0, 1, 2] # List of indices in data to explain
 
