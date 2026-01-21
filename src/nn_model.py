@@ -367,7 +367,7 @@ class NeuralNetworkModel(BaseModel):
                 plt.title(f"SHAP Summary Plot - Class: {class_name}")
                 plt.tight_layout()
                 plt.savefig(figure_file)
-                plt.show()
+                plt.close()
                 print(f"SHAP figure saved to: {figure_file}")
 
     def explain_lime(self, instances):
@@ -419,12 +419,12 @@ class NeuralNetworkModel(BaseModel):
 
             # Convert explanation to a dictionary
             explanation_dict = {
-                "instance": inst,
+                "instance": int(inst),
                 "target_column": self.target_column,
                 "explanation": explanation.as_list(),
-                "class_names": self.class_names,
+                "class_names": self.class_names.tolist() if self.class_names is not None else None,
                 "data_row": self.X_train.iloc[inst].to_dict(),
-                "target": self.y_train.iloc[inst]
+                "target": int(self.y_train.iloc[inst])
             }
 
             # Save the explanation as a JSON file

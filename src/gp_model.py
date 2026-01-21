@@ -242,7 +242,7 @@ class GeneticProgrammingModel(BaseModel):
         # Numeric constants for thresholds
         pset.addEphemeralConstant(
             "rand_float",
-            lambda: random.uniform(-5.0, 5.0),
+            functools.partial(random.uniform, -5.0, 5.0),
             TFloat
         )
 
@@ -696,12 +696,12 @@ class GeneticProgrammingModel(BaseModel):
 
             # Convert explanation to a dictionary
             explanation_dict = {
-                "instance": idx,
+                "instance": int(idx),
                 "target_column": self.target_column,
                 "explanation": explanation.as_list(),
-                "class_names": self.class_names,
+                "class_names": self.class_names.tolist() if self.class_names is not None else None,
                 "data_row": self.X_train.iloc[idx].to_dict(),
-                "target": self.y_train.iloc[idx]
+                "target": int(self.y_train.iloc[idx])
             }
 
             json_file = os.path.join(TMP_FOLDER, f"gp_lime_{self.target_column}_{idx}.json")
