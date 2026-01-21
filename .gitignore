@@ -8,6 +8,7 @@ tmp
 models
 logs
 datasets/.DS_Store
+test_results
 
 # My notes
 datasets_description.txt

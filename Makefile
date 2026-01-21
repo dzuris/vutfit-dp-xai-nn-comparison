@@ -13,6 +13,7 @@ CONFIG_FILE_TXTEXP:=src/sls/config_sls.yaml
 TMP_DIR:=tmp
 MODELS_DIR:=models
 LOGS_DIR:=logs
+TEST_RESULTS_DIR:=test_results
 
 # Targets
 .PHONY: all xai clean
@@ -34,4 +35,5 @@ clean:
 	@rm -rf $(LOGS_DIR)/*
 	@rm -rf $(MODELS_DIR)/*
 	@rm -rf $(TMP_DIR)/*
+	@rm -rf $(TEST_RESULTS_DIR)
 	@echo "Cleaning completed."
