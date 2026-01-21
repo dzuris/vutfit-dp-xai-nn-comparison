@@ -281,7 +281,12 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
         feature_attribs = {}
         for i, feature_name in enumerate(feature_names):
-            corr = np.corrcoef(X.iloc[:, i], shap_values[:, i])[0, 1]
+            if len(shap_values.shape) > 2:
+                shap_feature = np.mean(np.abs(shap_values[:, i, :]), axis=1)
+            else:
+                shap_feature = shap_values[:, i]
+
+            corr = np.corrcoef(X.iloc[:, i], shap_feature)[0, 1]
 
             feature_attribs[feature_name] = {
                 "direction": "positive" if corr > 0 else "inverse",
