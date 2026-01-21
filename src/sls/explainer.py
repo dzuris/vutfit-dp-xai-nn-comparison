@@ -272,7 +272,7 @@ class ExplanationGenerator:
         text.append("  push model predicted value higher.")
         text.append("- Lower feature values push model prediction to lower predicted value.")
         text.append("What does it mean when direction is inverse?")
-        text.append("- Positive direction means that higher values of feature")
+        text.append("- Inverse direction means that higher values of feature")
         text.append("  push model predicted value lower.")
         text.append("- Lower feature values push model prediction to higher predicted value.")
 
