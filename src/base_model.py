@@ -299,7 +299,8 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
             "task_type": task_type,
             "feature_names": feature_names,
             "feature_attribs": feature_attribs,
-            "class_names": class_names,
+            "base_value": np.asarray(explainer.expected_value).tolist(),
+            "class_names": list(class_names) if class_names is not None else None,
             "target_column": target_column
         }
 

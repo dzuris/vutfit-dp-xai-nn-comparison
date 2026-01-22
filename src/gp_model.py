@@ -246,6 +246,9 @@ class GeneticProgrammingModel(BaseModel):
             TFloat
         )
 
+        # Add a terminal that accepts any float for compatibility during loading
+        pset.addTerminal(0.0, TFloat)
+
         return pset
 
     def _initialize_toolbox(self):
@@ -601,7 +604,7 @@ class GeneticProgrammingModel(BaseModel):
             task_type=self.task_type,
             model_type="gp",
             target_column=self.target_column,
-            class_names=self.target_column
+            class_names=self.class_names
         )
 
         # Summary plot

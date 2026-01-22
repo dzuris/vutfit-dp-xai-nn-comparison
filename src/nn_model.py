@@ -332,7 +332,7 @@ class NeuralNetworkModel(BaseModel):
             task_type=self.task_type,
             model_type="nn",
             target_column=self.target_column,
-            class_names=self.target_column
+            class_names=self.class_names
         )
 
         # --- Regression or Binary Classification ---
