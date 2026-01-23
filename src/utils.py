@@ -57,11 +57,9 @@ def load_config(config_path: str) -> dict:
 
 def set_reproducibility(seed=42):
     """Set global seeds for reproducilibility"""
-    # 1. Set python hash seed
     os.environ['PYTHONHASHSEED'] = str(seed)
-    # 2. Set Python built-in random seed
+    os.environ["TF_DETERMINISTIC_OPS"] = "1"  # ensure TF ops are deterministic
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
     random.seed(seed)
-    # 3. Set NumPy seed
     np.random.seed(seed)
-    # 4. Set TensorFlow seed
     tf.random.set_seed(seed)

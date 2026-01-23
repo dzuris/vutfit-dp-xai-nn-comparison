@@ -75,7 +75,7 @@ def main(): # pylint: disable=too-many-locals
     Runs loading config, validating config, preprocessing, training and obtaining loss values.
     """
     # Set seed for reproducibility
-    set_reproducibility(42)
+    set_reproducibility()
 
     # Create argument parser
     parser = argparse.ArgumentParser(

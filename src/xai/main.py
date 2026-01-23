@@ -6,7 +6,7 @@ import time
 import argparse
 from pathlib import Path
 from src.i_model import get_model
-from src.utils import load_config
+from src.utils import load_config, set_reproducibility
 from src.preprocess import load_and_preprocess_data
 from src.logging_handler import LoggerHandler
 from src.exceptions import UnsupportedXaiMethodException
@@ -18,6 +18,9 @@ def main():
 
     The program explains selected model with selected xai method.
     """
+    # Set seed for reproducibility
+    set_reproducibility()
+
     # Create an argument parser
     parser = argparse.ArgumentParser(description="Explaining Model's behavior script")
     parser.add_argument('--config',
