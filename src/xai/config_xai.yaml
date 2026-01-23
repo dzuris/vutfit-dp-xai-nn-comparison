@@ -1,22 +1,23 @@
 data:
-  dataset_path: "datasets/iris.csv"
-  type: classification # Options: regression, classification
+  dataset_path: "datasets/ENB2012_data.xlsx"
+  type: regression # Options: regression, classification
   # If columns are not valid Python identifiers, the program coonverts them,
   # and here you need to specify valid column
   # names (e.g. "Concrete compressive strength(MPa, megapascals)" -> "Concrete_compressive_strength_MPa_megapascals").
   target_columns:
-    - variety
+    - Y1
+    - Y2
   missing_value_strategy: 'drop'  # Options: 'mean', 'median', 'mode', 'drop'
   test_size: 0.2
   random_state: 42
 
 selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
-loss_function: accuracy # Options: regression: 'mae', 'mse', classification: 'accuracy', 'log_loss'
+loss_function: mae # Options: regression: 'mae', 'mse', 'r2', classification: 'accuracy', 'log_loss'
 
 xai:
   # model filename must match dataset in data config
-  model_filename_to_explain: "gp_model_variety.pickle"
-  model_target_column_name: "variety"
+  model_filename_to_explain: "gp_model_Y2.pickle"
+  model_target_column_name: "Y2"
   # Method options for both nn and gp: 'shap', 'lime', 'visualize', 'summarize'
   method: 'summarize'
   lime:

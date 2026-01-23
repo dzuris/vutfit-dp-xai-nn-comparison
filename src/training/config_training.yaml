@@ -1,41 +1,42 @@
 data:
-  dataset_path: "datasets/ENB2012_data.xlsx"
-  type: regression # Options: regression, classification
+  dataset_path: "datasets/iris.csv"
+  type: classification # Options: regression, classification
   # If columns are not valid Python identifiers, the program coonverts them,
   # and here you need to specify valid column
   # names (e.g. "Concrete compressive strength(MPa, megapascals)" -> "Concrete_compressive_strength_MPa_megapascals").
   target_columns:
-    - Y1
-    - Y2
+    - variety
   missing_value_strategy: 'drop'  # Options: 'mean', 'median', 'mode', 'drop'
   test_size: 0.2
   random_state: 42
 
-selected_model: NeuralNetwork # Options: 'NeuralNetwork', 'GeneticProgramming'
-loss_function: # Options: regression: 'mae', 'mse', 'r2', classification: 'accuracy', 'log_loss'
-  - r2
-  - mae
+selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
+loss_function: accuracy # Options: regression: 'mae', 'mse', 'r2', classification: 'accuracy', 'log_loss'
 
 model_training:
   nn:
     # Neural Network Model
     hidden_units: 128
     hidden_layers: 3
-    activation_function: relu
+    activation_function: elu
     batch_normalization: True
     learning_rate: 0.001
     optimizer: adam   # Options: 'adam', 'sgd'
     epochs: 600
-    batch_size: 16
+    batch_size: 32
     dropout_rate: 0.1
+    early_stopping: True
+    reduce_loss: True
+    tensorboard_cb: False
     print_train_logs: 1 # 0 - not printing, 1 - printing
   gp:
     # Genetic Programming Model
-    population_size: 15
+    population_size: 1000
     generations: 200
-    crossover_pb: 0.5
+    crossover_pb: 0.8
     mutation_pb: 0.2
-    elitism: False
+    penalty_bloat: 0.0001
+    elitism: True
 
 logging:
   # format: '%(name)s - %(levelname)s - %(message)s'

@@ -14,6 +14,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model # pylint: disable=no-name-in-module  # type: ignore
 from tensorflow.keras.layers import Dense, Dropout, BatchNormalization # pylint: disable=no-name-in-module  # type: ignore
 from tensorflow.keras.optimizers import Adam, SGD # pylint: disable=no-name-in-module  # type: ignore
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau # pylint: disable=no-name-in-module  # type: ignore
 from src.base_model import BaseModel
 from src.logging_handler import LoggerHandler
 from src.utils import MODELS_FOLDER, TASK_TYPES, TMP_FOLDER
@@ -92,7 +93,7 @@ class NeuralNetworkModel(BaseModel):
 
         self.model = tf.keras.models.load_model(self.file_path) # pylint: disable=no-member
 
-    def create_and_train_model(self, training_config: dict): # pylint: disable=too-many-arguments, too-many-positional-arguments, arguments-differ
+    def create_and_train_model(self, training_config: dict): # pylint: disable=too-many-branches
         """
         Create and train a single-output neural network model.
 
@@ -160,18 +161,42 @@ class NeuralNetworkModel(BaseModel):
         # Compile model
         self.model.compile(optimizer=optimizer, loss=loss_function, metrics=metrics)
 
-        # Train the model
-        log_dir = f"{TMP_FOLDER}/fit"
-        os.makedirs(log_dir, exist_ok=True) # Ensure the output directory exists
-        tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=log_dir) # pylint: disable=no-member
+        callbacks = []
 
+        # Early stopping
+        if training_config.get('early_stopping', False):
+            early_stop = EarlyStopping(
+                monitor='val_loss',
+                patience=50,
+                restore_best_weights=True
+            )
+            callbacks.append(early_stop)
+
+        # ReduceLROnPlateau
+        if training_config.get('reduce_loss', False):
+            reduce_lr = ReduceLROnPlateau(
+                monitor='val_loss',      # Watch the validation loss
+                factor=0.2,              # Reduce LR by 80% (new LR = LR * 0.2)
+                patience=20,             # Wait 20 epochs before cutting LR
+                min_lr=1e-6              # Don't let it drop below this value
+            )
+            callbacks.append(reduce_lr)
+
+        # Tensorboard generating
+        if training_config.get('tensorboard_cb', False):
+            log_dir = f"{TMP_FOLDER}/fit"
+            os.makedirs(log_dir, exist_ok=True) # Ensure the output directory exists
+            tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir=log_dir) # pylint: disable=no-member
+            callbacks.append(tensorboard_cb)
+
+        # Train the model
         self.model.fit(self.X_train,
                        self.y_train,
                        epochs=training_config['epochs'],
                        batch_size=training_config['batch_size'],
                        validation_data=(self.X_test, self.y_test),
                        verbose=training_config['print_train_logs'],
-                       callbacks=[tensorboard_cb])
+                       callbacks=callbacks)
 
     def predict(self, X=None) -> np.ndarray:
         """Predicts values using the trained neural network model.
