@@ -12,7 +12,7 @@ from sklearn.preprocessing import LabelEncoder
 from lime.lime_tabular import LimeTabularExplainer
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model # pylint: disable=no-name-in-module  # type: ignore
-from tensorflow.keras.layers import Dense, Dropout # pylint: disable=no-name-in-module  # type: ignore
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization # pylint: disable=no-name-in-module  # type: ignore
 from tensorflow.keras.optimizers import Adam, SGD # pylint: disable=no-name-in-module  # type: ignore
 from src.base_model import BaseModel
 from src.logging_handler import LoggerHandler
@@ -118,6 +118,8 @@ class NeuralNetworkModel(BaseModel):
             self.model.add(
                 Dense(training_config['hidden_units'],
                       activation=training_config['activation_function']))
+            if training_config['batch_normalization']:
+                self.model.add(BatchNormalization())
             self.model.add(Dropout(training_config['dropout_rate']))
 
         # Output Layer

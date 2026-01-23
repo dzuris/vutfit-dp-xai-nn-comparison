@@ -9,7 +9,9 @@ from src.utils import (
     LOSS_FUNCTIONS_REGRESSION,
     LOSS_FUNCTIONS_CLASSIFICATION,
     TASK_TYPES, MODELS,
-    load_config)
+    load_config,
+    set_reproducibility
+)
 from src.exceptions import (
     UnsupportedLossException,
     UnsupportedTaskTypeException,
@@ -72,6 +74,9 @@ def main(): # pylint: disable=too-many-locals
     
     Runs loading config, validating config, preprocessing, training and obtaining loss values.
     """
+    # Set seed for reproducibility
+    set_reproducibility(42)
+
     # Create argument parser
     parser = argparse.ArgumentParser(
         description='Program for getting explanations from the model.'
