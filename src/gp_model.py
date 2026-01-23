@@ -32,7 +32,11 @@ from src.gp_primitives import (
     to_float,
     protected_div,
     protected_sqrt,
-    protected_log
+    protected_log,
+    protected_pow,
+    protected_exp,
+    protected_reciprocal,
+    protected_not
 )
 from src.gp_types import TInt, TFloat, TBool
 
@@ -169,6 +173,12 @@ class GeneticProgrammingModel(BaseModel):
         pset.addPrimitive(np.sin, 1)
         pset.addPrimitive(np.cos, 1)
 
+        # Polynomial terms
+        pset.addPrimitive(np.square, 1)
+        pset.addPrimitive(protected_pow, 2)
+        pset.addPrimitive(protected_exp, 1)
+        pset.addPrimitive(protected_reciprocal, 1)
+
         # Safe math
         pset.addPrimitive(np.abs, 1)
         pset.addPrimitive(protected_sqrt, 1)
@@ -228,7 +238,7 @@ class GeneticProgrammingModel(BaseModel):
         # Logical operators
         pset.addPrimitive(operator.and_, [TBool, TBool], TBool)
         pset.addPrimitive(operator.or_, [TBool, TBool], TBool)
-        pset.addPrimitive(operator.not_, [TBool], TBool)
+        pset.addPrimitive(protected_not, [TBool], TBool)
 
         # Conditional if-then-else
         pset.addPrimitive(if_then_else, [TBool, TInt, TInt], TInt)
@@ -336,7 +346,7 @@ class GeneticProgrammingModel(BaseModel):
 
         print("GP model loaded successfully.")
 
-    def _evaluate(self, individual, X, y) -> float:
+    def _evaluate(self, individual, X, y, bloat_penalty) -> float:
         """Evaluate individual function.
 
         The functions calculates mse for regression tasks and accuracy score
@@ -352,27 +362,39 @@ class GeneticProgrammingModel(BaseModel):
         # 2. Compile the GP tree into a callable function
         func = self.toolbox.compile(expr=individual) # pylint: disable=no-member
 
+        # Penalize the bloat
+        penalty = len(individual) * bloat_penalty if len(individual) > 15 else 0
+
         # 3. Make predictions
-        preds = []
-        for row in X.values:
-            try:
-                pred = func(*row)
-            except (ZeroDivisionError, OverflowError, FloatingPointError, ValueError):
-                pred = np.inf if is_regression else -999
-            preds.append(pred)
+        try:
+            preds = func(*[X[col].values for col in self.input_features])
 
-        # 4. Return mse or accuracy score according to task type
-        if is_regression:
-            preds = np.array(preds, dtype=float)
+            # Handle cases where func returns a single scalar instead of an array
+            if np.isscalar(preds) or (isinstance(preds, np.ndarray) and preds.ndim == 0):
+                preds = np.full(len(y), preds.item() if isinstance(preds, np.ndarray) else preds)
 
-            # Mean Squared Error
-            mse = np.mean((preds - y.values) ** 2)
+            # Handle invalid results
+            if np.any(np.isnan(preds)) or np.any(np.isinf(preds)):
+                print(
+                    "WARNING: NaN/Inf detected in predictions for individual: "
+                    f"{str(individual)[:50]}..."
+                )
+                return (999999.0,) if is_regression else (0.00,)
 
-            # DEAP expects a tuple
-            return (mse,)
+            if is_regression:
+                error = np.mean(np.abs(preds - y.values))
+                return (error + penalty,)
 
-        # accuracy only on valid predictions
-        return (accuracy_score(y, preds),)
+            accuracy = accuracy_score(y, np.round(preds))
+            return (accuracy - penalty,)
+
+        except ZeroDivisionError as e:
+            print(f"ERROR: Division by zero in tree evaluation: {e}")
+            return (999999.0,) if is_regression else (0.00, )
+        except Exception as e: # pylint: disable=broad-exception-caught
+            print(f"ERROR: Evaluation failed: {type(e).__name__}: {e}")
+            print(f"Individual: {str(individual)[:100]}...")
+            return (999999.0,) if is_regression else (0.00, )
 
     def create_and_train_model(self, training_config: dict):
         """Train the GP Tree-based model.
@@ -392,7 +414,8 @@ class GeneticProgrammingModel(BaseModel):
             "evaluate",
             self._evaluate,
             X=self.X_train,
-            y=self.y_train
+            y=self.y_train,
+            bloat_penalty=training_config['penalty_bloat']
         )
 
         # Create initial population
@@ -411,6 +434,7 @@ class GeneticProgrammingModel(BaseModel):
         stats = tools.Statistics(lambda ind: ind.fitness.values)
         stats.register("avg", np.mean)
         stats.register("max", np.max)
+        stats.register("min", np.min)
 
         # Run evolutionary algorithm
         population, _ = algorithms.eaSimple(
