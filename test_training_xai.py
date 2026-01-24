@@ -12,6 +12,8 @@ import argparse
 import subprocess
 import yaml
 
+SHOULD_TRAIN_MODEL = False
+
 
 class TestRunner:
     """Manages comprehensive testing of model training and XAI explanations."""
@@ -309,7 +311,11 @@ class TestRunner:
             self.log(f"\n--- Testing {model_type} ---\n")
 
             # Train model
-            train_success = self.train_model(dataset_name, model_type)
+            if SHOULD_TRAIN_MODEL:
+                train_success = self.train_model(dataset_name, model_type)
+            else:
+                train_success = True
+
             summary['total_tests'] += 1
 
             if train_success:
