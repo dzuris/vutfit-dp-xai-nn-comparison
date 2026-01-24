@@ -2,11 +2,17 @@
 
 This module loads the model and explain it.
 """
+import os
 import time
 import argparse
 from pathlib import Path
 from src.i_model import get_model
-from src.utils import load_config, set_reproducibility, ignore_warnings
+from src.utils import (
+    load_config,
+    set_reproducibility,
+    ignore_warnings,
+    EXPLANATIONS_STORE_FOLDER
+)
 from src.preprocess import load_and_preprocess_data
 from src.logging_handler import LoggerHandler
 from src.exceptions import UnsupportedXaiMethodException
@@ -89,6 +95,9 @@ def main():
     # -------------------------
     # Obtain selected XAI method (e.g. SHAP, LIME, etc)
     print("\nExplaining the model...")
+
+    # Create the folder to store explain files
+    os.makedirs(EXPLANATIONS_STORE_FOLDER, exist_ok=True)
 
     # Measure explaining time
     start_time = time.time()

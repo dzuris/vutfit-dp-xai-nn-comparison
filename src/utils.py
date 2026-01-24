@@ -20,6 +20,7 @@ from sklearn.metrics import (
 # Config folders
 TMP_FOLDER = 'tmp'
 MODELS_FOLDER = "models"
+EXPLANATIONS_STORE_FOLDER = os.path.join(TMP_FOLDER, "exp")
 
 # Configurations
 MODELS = ['NeuralNetwork', 'GeneticProgramming']

@@ -13,10 +13,10 @@ from sklearn.preprocessing import LabelEncoder
 from src.logging_handler import LoggerHandler
 from src.utils import (
     TASK_TYPES,
-    TMP_FOLDER,
     MODELS_FOLDER,
     LOSS_FUNCTIONS_REGRESSION,
-    LOSS_FUNCTIONS_CLASSIFICATION
+    LOSS_FUNCTIONS_CLASSIFICATION,
+    EXPLANATIONS_STORE_FOLDER
 )
 from src.exceptions import (
     UnsupportedLossException,
@@ -271,10 +271,12 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
         # Calculate SHAP values
         shap_values = explainer.shap_values(X_test.values)
-        print('shap values:', shap_values.shape)
+        print('shap values shape:', shap_values.shape)
 
         # Saves shap values and metadata
-        shap_values_filename = f"{TMP_FOLDER}/{model_type}_shap_values_{target_column}.npz"
+        shap_values_filename = (
+            f"{EXPLANATIONS_STORE_FOLDER}/{model_type}_shap_values_{target_column}.npz"
+        )
         np.savez_compressed(
             shap_values_filename,
             shap_values=shap_values,
@@ -334,7 +336,9 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
             "target_column": target_column
         }
 
-        metadata_filename = f"{TMP_FOLDER}/{model_type}_shap_metadata_{target_column}.json"
+        metadata_filename = (
+            f"{EXPLANATIONS_STORE_FOLDER}/{model_type}_shap_metadata_{target_column}.json"
+        )
         with open(metadata_filename, "w", encoding='utf-8') as f:
             json.dump(metadata, f, indent=4)
 

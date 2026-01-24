@@ -12,6 +12,8 @@ import argparse
 import subprocess
 import yaml
 
+
+# Flag option if models should be retrained using these script
 SHOULD_TRAIN_MODEL = False
 
 

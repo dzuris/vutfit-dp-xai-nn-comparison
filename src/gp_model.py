@@ -22,7 +22,7 @@ from deap import base, creator, tools, gp, algorithms
 from graphviz import Digraph
 from src.base_model import BaseModel
 from src.logging_handler import LoggerHandler
-from src.utils import MODELS_FOLDER, TASK_TYPES, TMP_FOLDER
+from src.utils import MODELS_FOLDER, TASK_TYPES, EXPLANATIONS_STORE_FOLDER
 from src.exceptions import UnsupportedTaskTypeException
 from src.gp_primitives import (
     if_then_else,
@@ -514,7 +514,7 @@ class GeneticProgrammingModel(BaseModel):
         if self.best_individual is None:
             raise ValueError("No trained model exists. Train the model before summarizing.")
 
-        output_file = f"{TMP_FOLDER}/gp_summarize_{self.target_column}.json"
+        output_file = f"{EXPLANATIONS_STORE_FOLDER}/gp_summarize_{self.target_column}.json"
         gp_summary = {
             "target_column": self.target_column,
             "best_tree": str(self.best_individual),
@@ -568,7 +568,7 @@ class GeneticProgrammingModel(BaseModel):
         _add_nodes_edges(root, tree=self.best_individual, dot=dot)
 
         # Optionally render the graph to a file
-        output_file = f"{TMP_FOLDER}/gp_visualize_{self.target_column}"
+        output_file = f"{EXPLANATIONS_STORE_FOLDER}/gp_visualize_{self.target_column}"
         dot.render(output_file, format='png', cleanup=True)
         print(f"Visualization for {self.target_column} saved to {output_file}.png")
 
@@ -579,9 +579,6 @@ class GeneticProgrammingModel(BaseModel):
         Raises:
             ValueError: If no model was trained.
         """
-
-        os.makedirs(TMP_FOLDER, exist_ok=True)
-
         if self.best_individual is None:
             raise ValueError(f"No trained model for target `{self.target_column}`")
 
@@ -636,7 +633,7 @@ class GeneticProgrammingModel(BaseModel):
             max_display=10,
             show=False
         )
-        figure_file = f"{TMP_FOLDER}/gp_shap_figure_{self.target_column}.png"
+        figure_file = f"{EXPLANATIONS_STORE_FOLDER}/gp_shap_figure_{self.target_column}.png"
         plt.title(f"SHAP Summary Plot — Target: {self.target_column}")
         plt.tight_layout()
         plt.savefig(figure_file)
@@ -689,9 +686,6 @@ class GeneticProgrammingModel(BaseModel):
             random_state=42
         )
 
-        # Ensure the output directory exists
-        os.makedirs(TMP_FOLDER, exist_ok=True)
-
         # Explain each instance and save the explanation to a file
         print(f"LIME Explanation for target column: {self.target_column}")
         for idx in instances:
@@ -710,7 +704,7 @@ class GeneticProgrammingModel(BaseModel):
 
             # Save the explanation to a file
             explanation_file = os.path.join(
-                TMP_FOLDER, f"gp_lime_{self.target_column}_{idx}.html"
+                EXPLANATIONS_STORE_FOLDER, f"gp_lime_{self.target_column}_{idx}.html"
             )
             explanation.save_to_file(explanation_file)
             print(f"Instance: {idx}")
@@ -728,7 +722,9 @@ class GeneticProgrammingModel(BaseModel):
                 "target": int(self.y_train.iloc[idx])
             }
 
-            json_file = os.path.join(TMP_FOLDER, f"gp_lime_{self.target_column}_{idx}.json")
+            json_file = os.path.join(
+                EXPLANATIONS_STORE_FOLDER, f"gp_lime_{self.target_column}_{idx}.json"
+            )
             with open(json_file, "w", encoding='utf-8') as f:
                 json.dump(explanation_dict, f, indent=4)
 

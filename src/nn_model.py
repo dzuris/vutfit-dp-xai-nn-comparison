@@ -17,7 +17,7 @@ from tensorflow.keras.optimizers import Adam, SGD # pylint: disable=no-name-in-m
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau # pylint: disable=no-name-in-module  # type: ignore
 from src.base_model import BaseModel
 from src.logging_handler import LoggerHandler
-from src.utils import MODELS_FOLDER, TASK_TYPES, TMP_FOLDER
+from src.utils import MODELS_FOLDER, TASK_TYPES, TMP_FOLDER, EXPLANATIONS_STORE_FOLDER
 
 class NeuralNetworkModel(BaseModel):
     """Neural Network Model.
@@ -244,9 +244,6 @@ class NeuralNetworkModel(BaseModel):
         - Computed loss value using selected loss function in configuration.
         """
 
-        # Sets output file
-        output_file = f"{TMP_FOLDER}/nn_summarize_{self.target_column}.json"
-
         # Create a dictionary to store the summary
         nn_summary = {
             "nn_architecture": {
@@ -280,6 +277,9 @@ class NeuralNetworkModel(BaseModel):
                 layer_info["dropout_rate"] = layer.rate
             nn_summary["nn_architecture"]["layers"].append(layer_info)
 
+        # Sets output file
+        output_file = f"{EXPLANATIONS_STORE_FOLDER}/nn_summarize_{self.target_column}.json"
+
         with open(output_file, "w", encoding='utf-8') as f:
             json.dump(nn_summary, f, indent=4)
 
@@ -298,7 +298,9 @@ class NeuralNetworkModel(BaseModel):
         """
         weights, _ = self.model.layers[0].get_weights()
 
-        figure_file = f"{TMP_FOLDER}/nn_visualize_layer1_weights_{self.target_column}.png"
+        figure_file = (
+            f"{EXPLANATIONS_STORE_FOLDER}/nn_visualize_layer1_weights_{self.target_column}.png"
+        )
         plt.imshow(weights, aspect='auto', cmap='viridis')
         plt.colorbar()
         plt.title("Layer 1 Weights")
@@ -323,7 +325,7 @@ class NeuralNetworkModel(BaseModel):
 
         for i, act in enumerate(activations[:-1]): # exclude output layer
             figure_file = (
-                f"{TMP_FOLDER}/"
+                f"{EXPLANATIONS_STORE_FOLDER}/"
                 f"nn_visualize_hidden_layer_{i+1}_activations_{self.target_column}.png"
             )
             plt.figure(figsize=(8, 2.5))
@@ -337,9 +339,6 @@ class NeuralNetworkModel(BaseModel):
 
     def explain_shap(self):
         """Explains the model using SHAP explainer."""
-
-        os.makedirs(TMP_FOLDER, exist_ok=True)
-
         # Calculate shap values
         shap_values = self.calculate_shap_values(
             X_train=self.X_train,
@@ -355,7 +354,7 @@ class NeuralNetworkModel(BaseModel):
         if self.task_type == TASK_TYPES[0] or (
             self.task_type == TASK_TYPES[1] and self.model.output_shape[1] == 1
         ):
-            figure_file = f"{TMP_FOLDER}/nn_shap_figure_{self.target_column}.png"
+            figure_file = f"{EXPLANATIONS_STORE_FOLDER}/nn_shap_figure_{self.target_column}.png"
 
             # If GradientExplainer returns a list for single output, take the first element
             vals_to_plot = shap_values[0] if isinstance(shap_values, list) else shap_values
@@ -379,11 +378,14 @@ class NeuralNetworkModel(BaseModel):
         if self.task_type == TASK_TYPES[1] and self.model.output_shape[1] > 1:
             shap_values = np.transpose(shap_values, (2, 0, 1))
             for i, class_name in enumerate(self.class_names):
-                figure_file = f"{TMP_FOLDER}/nn_shap_figure_{self.target_column}_{class_name}.png"
+                figure_file = (
+                    f"{EXPLANATIONS_STORE_FOLDER}/"
+                    f"nn_shap_figure_{self.target_column}_{class_name}.png"
+                )
                 shap.summary_plot(
                     shap_values[i],
                     features=self.X_test,
-                    # feature_names=self.X_test.columns.tolist(),
+                    feature_names=self.X_test.columns.tolist(),
                     show=False
                 )
                 plt.title(f"SHAP Summary Plot - Class: {class_name}")
@@ -409,9 +411,6 @@ class NeuralNetworkModel(BaseModel):
             random_state=42
         )
 
-        # Ensure the output directory exists
-        os.makedirs(TMP_FOLDER, exist_ok=True)
-
         # Explain each instance for each target column and save the explanation to a file
         for inst in instances:
 
@@ -431,7 +430,7 @@ class NeuralNetworkModel(BaseModel):
 
             # Save the explanation to a file
             explanation_file = os.path.join(
-                TMP_FOLDER, f"nn_lime_{self.target_column}_{inst}.html"
+                EXPLANATIONS_STORE_FOLDER, f"nn_lime_{self.target_column}_{inst}.html"
             )
             explanation.save_to_file(explanation_file)
             print(f"Instance: {inst}")
@@ -450,7 +449,9 @@ class NeuralNetworkModel(BaseModel):
             }
 
             # Save the explanation as a JSON file
-            json_file = os.path.join(TMP_FOLDER, f"nn_lime_{self.target_column}_{inst}.json")
+            json_file = os.path.join(
+                EXPLANATIONS_STORE_FOLDER, f"nn_lime_{self.target_column}_{inst}.json"
+            )
             with open(json_file, "w", encoding='utf-8') as f:
                 json.dump(explanation_dict, f, indent=4)
 
