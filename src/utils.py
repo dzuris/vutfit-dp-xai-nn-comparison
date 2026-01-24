@@ -3,6 +3,7 @@ utils.py - Utility functions for data processing.
 
 This module contains helper functions.
 """
+import warnings
 import os
 import random
 import yaml
@@ -66,7 +67,7 @@ def set_reproducibility(seed=42):
 
 
 def ignore_warnings():
-    import warnings
+    """Ignor non important warnings."""
     # Suppress non-critical warnings
     warnings.filterwarnings("ignore", category=UserWarning, module="keras")
     warnings.filterwarnings("ignore", category=UserWarning, module="shap")
