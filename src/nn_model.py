@@ -340,22 +340,11 @@ class NeuralNetworkModel(BaseModel):
 
         os.makedirs(TMP_FOLDER, exist_ok=True)
 
-        # Define prediction function
-        def predict_fn(X):
-            X = np.array(X)
-            preds = self.model.predict(X)
-
-            # Regression or Binary classification -> (n,) shape
-            if self.task_type == "regression" or preds.shape[1] == 1:
-                return preds.reshape(-1)
-
-            # Multi-class -> (n, C)
-            return preds
-
         # Calculate shap values
         shap_values = self.calculate_shap_values(
-            X=self.X_train,
-            predict_fn=predict_fn,
+            X_train=self.X_train,
+            X_test=self.X_test,
+            predict_fn_model=self.model,
             task_type=self.task_type,
             model_type="nn",
             target_column=self.target_column,
@@ -367,10 +356,16 @@ class NeuralNetworkModel(BaseModel):
             self.task_type == TASK_TYPES[1] and self.model.output_shape[1] == 1
         ):
             figure_file = f"{TMP_FOLDER}/nn_shap_figure_{self.target_column}.png"
+
+            # If GradientExplainer returns a list for single output, take the first element
+            vals_to_plot = shap_values[0] if isinstance(shap_values, list) else shap_values
+            if vals_to_plot.ndim == 3:
+                vals_to_plot = np.squeeze(vals_to_plot, axis=-1)
+
             shap.summary_plot(
-                shap_values,
-                features=self.X_train,
-                feature_names=self.X_train.columns.tolist(),
+                vals_to_plot,
+                features=self.X_test,
+                feature_names=self.X_test.columns.tolist(),
                 show=False
             )
             plt.title(f"SHAP Summary Plot — Target: {self.target_column}\n")
@@ -387,8 +382,8 @@ class NeuralNetworkModel(BaseModel):
                 figure_file = f"{TMP_FOLDER}/nn_shap_figure_{self.target_column}_{class_name}.png"
                 shap.summary_plot(
                     shap_values[i],
-                    features=self.X_train.values,
-                    feature_names=self.X_train.columns.tolist(),
+                    features=self.X_test,
+                    # feature_names=self.X_test.columns.tolist(),
                     show=False
                 )
                 plt.title(f"SHAP Summary Plot - Class: {class_name}")
