@@ -611,20 +611,17 @@ class GeneticProgrammingModel(BaseModel):
                 raise TypeError("X must be a pandas DataFrame or numpy array")
 
             # Apply GP function to each row with error handling
-            predictions = []
-            for row in X_array:
-                try:
-                    pred = func(*row)
-                    predictions.append(pred)
-                except Exception as e:
-                    raise RuntimeError(f"Error predicting row {len(predictions)}: {e}") from e
-
-            return np.array(predictions)
+            try:
+                preds = func(*[X_array[:, i] for i in range(X_array.shape[1])])
+                return np.asarray(preds)
+            except Exception as e:
+                raise RuntimeError(f"Vectorized prediction failed: {e}") from e
 
         # Calculate shap values
         shap_values = self.calculate_shap_values(
-            X=self.X_train,
-            predict_fn=predict_fn,
+            X_train=self.X_train,
+            X_test=self.X_test,
+            predict_fn_model=predict_fn,
             task_type=self.task_type,
             model_type="gp",
             target_column=self.target_column,
@@ -634,8 +631,8 @@ class GeneticProgrammingModel(BaseModel):
         # Summary plot
         shap.summary_plot(
             shap_values,
-            features=self.X_train,
-            feature_names=self.X_train.columns,
+            features=self.X_test,
+            feature_names=self.X_test.columns,
             max_display=10,
             show=False
         )
