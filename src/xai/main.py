@@ -6,7 +6,7 @@ import time
 import argparse
 from pathlib import Path
 from src.i_model import get_model
-from src.utils import load_config, set_reproducibility
+from src.utils import load_config, set_reproducibility, ignore_warnings
 from src.preprocess import load_and_preprocess_data
 from src.logging_handler import LoggerHandler
 from src.exceptions import UnsupportedXaiMethodException
@@ -18,6 +18,7 @@ def main():
 
     The program explains selected model with selected xai method.
     """
+    ignore_warnings()
     # Set seed for reproducibility
     set_reproducibility()
 
@@ -53,12 +54,14 @@ def main():
     # -------------------------
     # Load and preprocess the data
     # -------------------------
+    print("\nLoading the data...")
     X, y, y_encoders = load_and_preprocess_data(config['data'])
-    print('Data preprocessed...')
+    print('Data preprocessed.')
 
     # -------------------------
     # Load the model
     # -------------------------
+    print("\nLoading the model...")
     target_column = config['xai']['model_target_column_name']
 
     # Check if the target_column exists in y
@@ -85,7 +88,8 @@ def main():
     # XAI
     # -------------------------
     # Obtain selected XAI method (e.g. SHAP, LIME, etc)
-    print("Explaining the model...")
+    print("\nExplaining the model...")
+
     # Measure explaining time
     start_time = time.time()
 

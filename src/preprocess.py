@@ -93,6 +93,7 @@ def load_and_preprocess_data(config : dict):
     target_columns = config['target_columns']
     X = df.drop(columns=target_columns)
     y = df[target_columns]
+    print(f'Target columns: {target_columns}')
 
     # Label-encode categorical columns in X
     X_encoded = X.copy()

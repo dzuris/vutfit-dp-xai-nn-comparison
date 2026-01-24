@@ -63,3 +63,11 @@ def set_reproducibility(seed=42):
     random.seed(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
+
+
+def ignore_warnings():
+    import warnings
+    # Suppress non-critical warnings
+    warnings.filterwarnings("ignore", category=UserWarning, module="keras")
+    warnings.filterwarnings("ignore", category=UserWarning, module="shap")
+    warnings.filterwarnings("ignore", category=FutureWarning)
