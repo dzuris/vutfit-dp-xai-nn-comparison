@@ -237,18 +237,20 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
     @staticmethod
     def calculate_shap_values( # pylint: disable=too-many-arguments, too-many-positional-arguments, too-many-locals
-        X: pd.DataFrame,
-        predict_fn,
+        X_train: pd.DataFrame,
+        X_test: pd.DataFrame,
+        predict_fn_model,
         task_type: str,
         model_type: str,
         target_column: str,
         class_names: list[str]
     ) -> np.ndarray[np.ndarray]:
         """The funciton calculates the shap values and saves the values and metadata.
-        
+
         Args:
-            X (pd.DataFrame): Data features.
-            predict_fn: Function for predicting the X row.
+            X_train (pd.DataFrame): Data training features.
+            X_test (pd.DataFrame): Data test features.
+            predict_fn_model: Function for predicting the X row or model for NN.
             task_type (str): Task type (regression or classification).
             model_type (str): Model type (nn or gp).
             target_column (str): Target column name.
@@ -257,18 +259,19 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
         Returns:
             List of calculated shap values.
         """
-        if model_type not in ['nn', 'gp']:
-            raise ValueError(f"Invalid model type: {model_type} (Valid options: 'nn' or 'gp').")
-
-        background = X.sample(n=min(100, len(X)), random_state=42).values
-
-        feature_names = X.columns.tolist()
+        background = X_train.sample(n=min(100, len(X_train)), random_state=42).values
 
         # Initialize SHAP explainer
-        explainer = shap.KernelExplainer(predict_fn, background)
+        if model_type == 'nn':
+            explainer = shap.GradientExplainer(predict_fn_model, background)
+        elif model_type == 'gp':
+            explainer = shap.KernelExplainer(predict_fn_model, background)
+        else:
+            raise ValueError(f"Invalid model type: {model_type}.")
 
         # Calculate SHAP values
-        shap_values = explainer.shap_values(X.values)
+        shap_values = explainer.shap_values(X_test.values)
+        print('shap values:', shap_values.shape)
 
         # Saves shap values and metadata
         shap_values_filename = f"{TMP_FOLDER}/{model_type}_shap_values_{target_column}.npz"
@@ -276,17 +279,33 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
             shap_values_filename,
             shap_values=shap_values,
             background=background,
-            X_train=X.values
+            X_train=X_train.values
         )
 
+        feature_names = X_train.columns.tolist()
         feature_attribs = {}
+
         for i, feature_name in enumerate(feature_names):
+            # Extract values for this feature across all samples
+            # If 3D (classification), we take the absolute mean across classes
             if len(shap_values.shape) > 2:
                 shap_feature = np.mean(np.abs(shap_values[:, i, :]), axis=1)
             else:
                 shap_feature = shap_values[:, i]
 
-            corr = np.corrcoef(X.iloc[:, i], shap_feature)[0, 1]
+            x_vals = X_test.iloc[:, 1].values
+            shap_vals = np.asarray(shap_feature).flatten()
+
+            # Avoid divide-by-zero warnings if either vector is constant or NaN
+            if (
+                np.nanstd(x_vals) == 0
+                or np.nanstd(shap_vals) == 0
+                or np.isnan(x_vals).all()
+                or np.isnan(shap_vals).all()
+            ):
+                corr = 0.0
+            else:
+                corr = float(np.corrcoef(x_vals, shap_vals)[0, 1])
 
             feature_attribs[feature_name] = {
                 "direction": "positive" if corr > 0 else "inverse",
@@ -295,11 +314,22 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
                 "correlation_coefficient": corr
             }
 
+        if hasattr(explainer, 'expected_value'):
+            base_value = explainer.expected_value
+        else:
+            preds = predict_fn_model.predict(background)
+            base_value = np.mean(preds, axis=0)
+
+        bv_to_save = np.asarray(base_value)
+        if bv_to_save.ndim == 0: # Scalar
+            bv_to_save = float(bv_to_save)
+        else: # array
+            bv_to_save = bv_to_save.tolist()
         metadata = {
             "task_type": task_type,
             "feature_names": feature_names,
             "feature_attribs": feature_attribs,
-            "base_value": np.asarray(explainer.expected_value).tolist(),
+            "base_value": bv_to_save,
             "class_names": list(class_names) if class_names is not None else None,
             "target_column": target_column
         }
