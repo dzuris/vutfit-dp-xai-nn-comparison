@@ -358,8 +358,6 @@ class NeuralNetworkModel(BaseModel):
 
             # If GradientExplainer returns a list for single output, take the first element
             vals_to_plot = shap_values[0] if isinstance(shap_values, list) else shap_values
-            if vals_to_plot.ndim == 3:
-                vals_to_plot = np.squeeze(vals_to_plot, axis=-1)
 
             shap.summary_plot(
                 vals_to_plot,

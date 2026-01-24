@@ -156,7 +156,8 @@ class ExplanationGenerator:
             text.append("-" * 70)
             text.append(f"• Loss metric: {loss_info.get('selected_loss_name', 'N/A')}")
             text.append(f"• Loss value: {loss_info.get('loss_value', 'N/A'):.4f}")
-            text.append("  (Lower loss = better performance)")
+            text.append(" MAE, MSE, LOG_LOSS => (Lower loss = better performance)")
+            text.append(" R2, ACCURACY => (Higher loss = better performance)")
             text.append("")
 
             return "\n".join(text)
@@ -245,7 +246,7 @@ class ExplanationGenerator:
         text.append("OVERALL FEATURE IMPORTANCE (based on all instances):")
         text.append("-" * 70)
 
-        for rank, idx in enumerate(sorted_indices[:5], 1):
+        for rank, idx in enumerate(sorted_indices[:10], 1):
             if idx < len(feature_names):
                 feature_name = feature_names[idx]
                 importance = mean_abs_shap[idx]
@@ -255,7 +256,7 @@ class ExplanationGenerator:
         # Other attributes
         text.append("RANGE AND DIRECTION")
         text.append("-" * 70)
-        for rank, idx in enumerate(sorted_indices[:5], 1):
+        for rank, idx in enumerate(sorted_indices[:10], 1):
             feature_name = feature_names[idx]
             feature_attribs = self._get_feature_attribs()[feature_name]
             impact_min = feature_attribs["range_min"]
@@ -269,12 +270,10 @@ class ExplanationGenerator:
         text.append("")
         text.append("What does it mean when direction is positive?")
         text.append("- Positive direction means that higher values of feature")
-        text.append("  push model predicted value higher.")
-        text.append("- Lower feature values push model prediction to lower predicted value.")
+        text.append("  often push model predicted value higher and vice versa.")
         text.append("What does it mean when direction is inverse?")
         text.append("- Inverse direction means that higher values of feature")
-        text.append("  push model predicted value lower.")
-        text.append("- Lower feature values push model prediction to higher predicted value.")
+        text.append("  often push model predicted value lower and vice versa.")
 
         return "\n".join(text)
 

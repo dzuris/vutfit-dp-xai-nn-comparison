@@ -9,6 +9,7 @@ models
 logs
 datasets/.DS_Store
 test_results
+sls_explanation.txt
 
 # My notes
 datasets_description.txt

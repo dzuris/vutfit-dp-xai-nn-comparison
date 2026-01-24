@@ -271,6 +271,14 @@ class BaseModel(ABC): # pylint: disable=too-many-instance-attributes
 
         # Calculate SHAP values
         shap_values = explainer.shap_values(X_test.values)
+
+        def squeeze_last_dim(x):
+            x = np.asarray(x)
+            if x.ndim == 3 and x.shape[-1] == 1:
+                return np.squeeze(x, axis=-1)
+            return x
+
+        shap_values = squeeze_last_dim(shap_values)
         print('shap values shape:', shap_values.shape)
 
         # Saves shap values and metadata

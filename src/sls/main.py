@@ -26,7 +26,7 @@ def basic_explanation():
     explanation = explainer.get_explanation()
 
     print(explanation)
-    print("\n✓ Explanation saved to:", config['output_folder'] + "/" + config['output_filename'])
+    print("\n✓ Explanation saved to:", explainer.get_output_file())
 
 if __name__ == "__main__":
     # Run explanation
