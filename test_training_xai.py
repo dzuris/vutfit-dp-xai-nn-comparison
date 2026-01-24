@@ -18,20 +18,20 @@ class TestRunner:
 
     # Dataset configurations
     DATASETS = {
-        # 'ENB2012': {
-        #     'path': 'datasets/ENB2012_data.xlsx',
-        #     'type': 'regression',
-        #     'targets': ['Y1', 'Y2'],
-        #     'loss': 'mse',
-        #     'lime_indices': [0, 1, 2]
-        # },
-        # 'Concrete': {
-        #     'path': 'datasets/concrete+compressive+strength/Concrete_Data.xls',
-        #     'type': 'regression',
-        #     'targets': ['Concrete_compressive_strength_MPa_megapascals'],
-        #     'loss': 'mse',
-        #     'lime_indices': [0, 1, 2]
-        # },
+        'ENB2012': {
+            'path': 'datasets/ENB2012_data.xlsx',
+            'type': 'regression',
+            'targets': ['Y1', 'Y2'],
+            'loss': 'mse',
+            'lime_indices': [0, 1, 2]
+        },
+        'Concrete': {
+            'path': 'datasets/concrete+compressive+strength/Concrete_Data.xls',
+            'type': 'regression',
+            'targets': ['Concrete_compressive_strength_MPa_megapascals'],
+            'loss': 'mse',
+            'lime_indices': [0, 1, 2]
+        },
         'Parkinsons': {
             'path': 'datasets/parkinsons+telemonitoring/parkinsons_updrs.csv',
             'type': 'regression',
@@ -39,21 +39,21 @@ class TestRunner:
             'loss': 'mse',
             'lime_indices': [0, 1, 2]
         },
-        # 'Iris': {
-        #     'path': 'datasets/iris.csv',
-        #     'type': 'classification',
-        #     'targets': ['variety'],
-        #     'loss': 'accuracy',
-        #     'lime_indices': [0, 1, 2]
-        # }
+        'Iris': {
+            'path': 'datasets/iris.csv',
+            'type': 'classification',
+            'targets': ['variety'],
+            'loss': 'accuracy',
+            'lime_indices': [0, 1, 2]
+        }
     }
 
     # Model types to test
     MODELS = ['NeuralNetwork', 'GeneticProgramming']
 
     # XAI methods to test
-    # XAI_METHODS = ['summarize', 'shap', 'lime', 'visualize']
-    XAI_METHODS = ['summarize', 'lime', 'visualize']
+    XAI_METHODS = ['summarize', 'shap', 'lime', 'visualize']
+    # XAI_METHODS = ['summarize', 'lime', 'visualize']
 
     def __init__(self, output_dir='test_results', quiet=False):
         """Initialize test runner.
