@@ -1,6 +1,24 @@
-"""NeuralNetworkModel module.
+"""Neural Network model implementation for regression and classification.
 
-This module contains implementation of Neural Network Model that is a subclass of BaseModel.
+Provides a concrete implementation of `BaseModel` using TensorFlow/Keras to
+build, train, and explain neural networks. Supports single-target regression
+and both binary and multi-class classification tasks. Includes training
+callbacks (early stopping, learning rate reduction), XAI methods (SHAP, LIME, summarization),
+and visualization of weights and layer activations.
+
+Features:
+    - Customizable architecture (hidden layers, units, activations)
+    - Batch normalization and dropout for regularization
+    - Multiple optimizers (Adam, SGD) and learning rate scheduling
+    - Early stopping and learning rate reduction callbacks
+    - TensorBoard integration for training monitoring
+    - SHAP explanations for global feature importance
+    - LIME explanations for local instance-level insights
+    - Visualization of layer weights and activations
+
+See Also:
+    src.base_model.BaseModel: Abstract base class
+    src.nn_model.NeuralNetworkModel: Concrete implementation
 """
 import os
 import json
@@ -20,30 +38,34 @@ from src.logging_handler import LoggerHandler
 from src.utils import MODELS_FOLDER, TASK_TYPES, TMP_FOLDER, EXPLANATIONS_STORE_FOLDER
 
 class NeuralNetworkModel(BaseModel):
-    """Neural Network Model.
+    """Keras-based neural network for supervised learning.
 
-    This class implements Neural Network Model methods.
+    Implements a fully-connected feedforward neural network for regression and
+    classification tasks. Extends `BaseModel` with TensorFlow/Keras integration,
+    training callbacks, and built-in XAI (SHAP and LIME) explanations.
 
     Attributes:
-        model (Sequential): The Neural Network model.
+        model (Sequential): TensorFlow/Keras Sequential model instance.
+        (Inherits from BaseModel: X_train, X_test, y_train, y_test, target_column,
+         task_type, selected_loss, feature_names, logger, file_path, y_encoder, class_names)
 
     Methods:
         save_model():
-            Saves the Neural Network model into a file.
+            Save trained Keras model to disk.
         load_model():
-            Loads the Neural Network model from a file.
-        create_and_train_model():
-            Creates and train Neural Network model on provided data, with config settings.
-        predict() -> np.ndarray:
-            Predicts test data.
+            Load Keras model from disk.
+        create_and_train_model(training_config: dict):
+            Build architecture and train on data.
+        predict(X=None) -> np.ndarray:
+            Generate predictions for regression or classification.
         get_model_summary():
-            Summarize the trained model's attributes.
+            Serialize model architecture and hyperparameters to JSON.
         visualize_model():
-            Visualize the NN model.
+            Visualize layer 1 weights and hidden layer activations.
         explain_shap():
-            Explains the model using SHAP method.
-        explain_lime():
-            Explains the model using LIME method.
+            Generate SHAP values and summary plots.
+        explain_lime(instances):
+            Generate LIME explanations for specified instances.
     """
     def __init__( # pylint: disable=too-many-positional-arguments, too-many-arguments
             self,
@@ -54,19 +76,19 @@ class NeuralNetworkModel(BaseModel):
             logger: LoggerHandler,
             model_filename: str,
             folder_path: str = MODELS_FOLDER):
-        """
-        Neural Network model constructor.
+        """Initialize a neural network model.
 
-        Initializes the model.
+        Calls parent `BaseModel.__init__()` to set up data splitting, logging,
+        and metadata, then initializes the model attribute to `None`.
 
         Args:
-            X (pd.DataFrame): Dataset features.
-            y (pd.DataFrame): Dataset target.
-            y_encoder (LabelEncoder): Encoder for target column.
-            config (dict): Configuration.
-            logger (LoggerHandler): Handler for logging.
-            model_filename (str): Neural Network model filename.
-            folder_path (str): Path to folder where NN model files should be stored/loaded from.
+            X (pd.DataFrame): Training features.
+            y (pd.DataFrame): Training targets.
+            y_encoder (LabelEncoder): Encoder for categorical targets (optional).
+            config (dict): Configuration dict with data, task, loss, and training settings.
+            logger (LoggerHandler): Logger instance.
+            model_filename (str): Filename for saving/loading the Keras model.
+            folder_path (str): Directory path (default: `MODELS_FOLDER`).
         """
         super().__init__(
             X=X,
@@ -79,14 +101,20 @@ class NeuralNetworkModel(BaseModel):
         self.model = None
 
     def save_model(self):
-        """Saves the model into a file."""
+        """Save the trained Keras model to disk.
+
+        Uses `model.save()` to persist the model architecture, weights, and
+        optimizer state to the file path specified in `self.file_path`.
+        """
         self.model.save(self.file_path)
 
     def load_model(self):
-        """Loads the model from the file into model attribute.
-        
+        """Load a Keras model from disk.
+
+        Restores the model from `self.file_path` using `tf.keras.models.load_model()`.
+
         Raises:
-            FileNotFoundError: If filepath is leading to no file.
+            FileNotFoundError: If the model file does not exist at `self.file_path`.
         """
         if not os.path.exists(self.file_path):
             raise FileNotFoundError(f'Cannot find provided file: {self.file_path}.')
@@ -94,16 +122,36 @@ class NeuralNetworkModel(BaseModel):
         self.model = tf.keras.models.load_model(self.file_path) # pylint: disable=no-member
 
     def create_and_train_model(self, training_config: dict): # pylint: disable=too-many-branches
-        """
-        Create and train a single-output neural network model.
+        """Build and train the neural network model.
+
+        Constructs a Sequential model with input layer, hidden layers (with optional
+        batch normalization and dropout), and task-specific output layer. Then trains
+        using `model.fit()` with optional callbacks (early stopping, learning rate
+        reduction, TensorBoard).
 
         Args:
-            training_config: Model's training configuration.
+            training_config (dict): Training hyperparameters including:
+                - hidden_layers (int): Number of hidden layers
+                - hidden_units (int): Neurons per hidden layer
+                - activation_function (str): Activation (e.g., 'relu')
+                - dropout_rate (float): Dropout probability (0.0-1.0)
+                - batch_normalization (bool): Apply batch norm after each hidden layer
+                - optimizer (str): 'adam' or 'sgd'
+                - learning_rate (float): Initial learning rate
+                - epochs (int): Training epochs
+                - batch_size (int): Batch size
+                - print_train_logs (bool): Verbosity level (0-2)
+                - early_stopping (bool): Enable early stopping
+                - reduce_lr (bool): Enable learning rate reduction
+                - tensorboard_cb (bool): Enable TensorBoard logging
 
         Raises:
-            ValueError: If unsupported optimizer is provided in configuration for nn
-                optimizer ('adam' or 'sgd' are valid values). Or unsupported type is
-                provided ('regression' or 'classification' are valid values).
+            ValueError: If optimizer not in ['adam', 'sgd'] or task_type unsupported.
+
+        Notes:
+            - Regression: single linear output (MSE loss)
+            - Binary classification: single sigmoid output (binary crossentropy loss)
+            - Multi-class: softmax output with sparse categorical crossentropy loss
         """
 
         # Log the training configuration
@@ -173,7 +221,7 @@ class NeuralNetworkModel(BaseModel):
             callbacks.append(early_stop)
 
         # ReduceLROnPlateau
-        if training_config.get('reduce_loss', False):
+        if training_config.get('reduce_lr', False):
             reduce_lr = ReduceLROnPlateau(
                 monitor='val_loss',      # Watch the validation loss
                 factor=0.2,              # Reduce LR by 80% (new LR = LR * 0.2)
@@ -199,14 +247,17 @@ class NeuralNetworkModel(BaseModel):
                        callbacks=callbacks)
 
     def predict(self, X=None) -> np.ndarray:
-        """Predicts values using the trained neural network model.
+        """Generate predictions on input data.
+
+        For regression: returns continuous values.
+        For binary classification: converts sigmoid output (>0.5) to class labels.
+        For multi-class: returns class indices from softmax output.
 
         Args:
-            X (pd.DataFrame, optional): Input features.
-                If None, uses self.X_test.
+            X (pd.DataFrame, optional): Input features. If None, uses `self.X_test`.
 
         Returns:
-            np.ndarray: Predicted values for the single target column.
+            np.ndarray: Predicted values (regression) or class labels (classification).
         """
 
         # 1. Choose input data
@@ -234,14 +285,15 @@ class NeuralNetworkModel(BaseModel):
 
     # --- EXPLAINING FUNCTIONS ---
     def get_model_summary(self):
-        """
-        Saves a summary of the neural network model for interpretability into a json file.
+        """Serialize model architecture and training info to JSON.
 
-        Includes:
-        - Model architecture (layers, neurons, activation functions).
-        - Total number of parameters.
-        - Training information (loss function, optimizer, learning rate).
-        - Computed loss value using selected loss function in configuration.
+        Saves a summary containing:
+        - Layer-by-layer details (type, name, units, activation, dropout)
+        - Total trainable parameters
+        - Optimizer and learning rate
+        - Selected loss function and computed loss value
+
+        Output: `{EXPLANATIONS_STORE_FOLDER}/nn_summarize_{target_column}.json`
         """
 
         # Create a dictionary to store the summary
@@ -286,15 +338,15 @@ class NeuralNetworkModel(BaseModel):
         print(f"Neural network summary saved into {output_file}.")
 
     def visualize_model(self):
-        """
-        Visualize the weights and activations of the Dense layers in the neural network.
+        """Visualize layer 1 weights and hidden layer activations.
 
-        This function visualizes:
-        1. The weights of the first layer in the model.
-        2. The activations of all Dense layers in the model for a single input sample.
+        Generates two types of visualizations:
+        1. Heatmap of input->layer1 weights
+        2. Heatmap of activations for each hidden layer (using first training sample)
 
-        Raises:
-            ValueError: If the model does not contain any Dense layers.
+        Outputs:
+        - `nn_visualize_layer1_weights_{target}.png`
+        - `nn_visualize_hidden_layer_{i}_activations_{target}.png` (one per hidden layer)
         """
         weights, _ = self.model.layers[0].get_weights()
 
@@ -338,7 +390,21 @@ class NeuralNetworkModel(BaseModel):
             plt.close()
 
     def explain_shap(self):
-        """Explains the model using SHAP explainer."""
+        """Generate SHAP feature importance explanations.
+
+        Computes SHAP values using `GradientExplainer` and saves:
+        - SHAP values array (`.npz`)
+        - Feature metadata and base values (`.json`)
+        - Summary plot (`.png`)
+
+        For regression and binary classification: single summary plot.
+        For multi-class: one summary plot per class.
+
+        Outputs:
+        - `nn_shap_values_{target}.npz`
+        - `nn_shap_metadata_{target}.json`
+        - `nn_shap_figure_{target}.png` (or per-class variants)
+        """
         # Calculate shap values
         shap_values = self.calculate_shap_values(
             X_train=self.X_train,
@@ -393,11 +459,21 @@ class NeuralNetworkModel(BaseModel):
                 print(f"SHAP figure saved to: {figure_file}")
 
     def explain_lime(self, instances):
-        """
-        Explains the Neural Network model using LIME for the given instances.
+        """Generate LIME local explanations for specific instances.
+
+        Creates an interpretable model for each instance to explain predictions
+        locally. Saves both HTML and JSON formats.
 
         Args:
-            instances (pd.DataFrame or np.ndarray): Instances to explain.
+            instances (list[int]): Indices of training instances to explain.
+
+        Outputs:
+        - `nn_lime_{target}_{index}.html` (interactive plot)
+        - `nn_lime_{target}_{index}.json` (structured explanation)
+
+        Notes:
+            - Uses top 10 most important features per explanation
+            - For multi-class: explains all classes
         """
 
         # Initialize the LIME explainer

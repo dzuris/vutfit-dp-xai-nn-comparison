@@ -1,9 +1,31 @@
-"""Tree-based Genetic Programming Model module.
+"""Tree-based genetic programming model for symbolic regression and classification.
 
-This module contains implementation of a Tree-based Genetic
-Programming Model that is a subclass of BaseModel. Moreover
-there is _add_nodes_edges function implementation used for generating
-tree visualization.
+Provides a concrete implementation of `BaseModel` using DEAP (Distributed Evolutionary
+Algorithms in Python) to evolve symbolic expression trees. Supports both regression
+and classification tasks with typed/untyped primitive sets, robust protected operations,
+and bloat control. Includes XAI methods (SHAP, LIME), tree visualization, and
+rule extraction.
+
+Features:
+    - Symbolic regression: Evolves mathematical expressions
+    - Classification: Evolves decision rules with conditional primitives
+    - Protected primitives: Handles division by zero, log of negatives, overflow
+    - Bloat penalty: Prevents excessive tree growth
+    - Elitism: Preserves best individuals across generations
+    - Tree visualization: Graphviz-based rendering
+    - SHAP/LIME explanations: XAI integration
+
+Helper Functions:
+    _add_nodes_edges(expr, parent_id, tree, index, dot):
+        Recursively builds Graphviz visualization of GP tree.
+    _extract_rules(tree):
+        Converts GP tree to human-readable rule strings.
+
+See Also:
+    src.base_model.BaseModel: Abstract base class
+    src.gp_primitives: Protected mathematical operations
+    src.gp_types: Type annotations for typed GP (TBool)
+    deap.gp: DEAP genetic programming framework
 """
 import os
 import random
@@ -39,43 +61,46 @@ from src.gp_primitives import (
 from src.gp_types import TBool
 
 class GeneticProgrammingModel(BaseModel):
-    """Genetic Programming Model.
+    """DEAP-based genetic programming for symbolic modeling.
 
-    This class implements Genetic Programming Model methods.
+    Evolves expression trees (regression) or decision trees (classification) using
+    genetic operators (crossover, mutation, selection). Implements BaseModel interface
+    with GP-specific training, prediction, summarization, and XAI methods.
 
     Attributes:
-        input_features (list[str]): List of features names.
-        pset (gp.PrimitiveSet or gp.PrimitiveSetTypes): Primitive set of functions.
-        best_individual (gp.PrimitiveTree): Best trained model.
-        toolbox (base.Toolbox): Toolbox for the model.
+        input_features (list[str]): Column names of input features.
+        pset (gp.PrimitiveSet | gp.PrimitiveSetTyped): DEAP primitive set
+            (untyped for regression, typed for classification).
+        best_individual (gp.PrimitiveTree): Best evolved tree from training.
+        toolbox (base.Toolbox): DEAP toolbox with registered operators.
+        (Inherits: X_train, X_test, y_train, y_test, target_column, task_type,
+         selected_loss, feature_names, logger, file_path, y_encoder, class_names)
 
     Methods:
         _initialize_pset_regression() -> gp.PrimitiveSet:
-            Initialize primitive set for regression tasks.
+            Build primitive set for regression (untyped).
         _initialize_pset_classification() -> gp.PrimitiveSetTyped:
-            Initialize primitive set for classification tasks.
-        _initialize_toolbox():
-            Initialize toolbox for generating GP Tree structure.
+            Build primitive set for classification (typed with conditionals).
+        _initialize_toolbox() -> base.Toolbox:
+            Configure DEAP toolbox with operators and depth limits.
         save_model():
-            Saves the best model to a file.
+            Pickle best individual tree to disk.
         load_model():
-            Loads the best model from a file.
-        _evaluate(individual, X, y) -> float:
-            Calculate fitness function for individual.
-        create_and_train_model():
-            Creates and train GP model.
+            Load and reconstruct pickled tree.
+        _evaluate(individual, X, y, bloat_penalty) -> tuple[float]:
+            Fitness function (MSE for regression, accuracy for classification).
+        create_and_train_model(training_config: dict):
+            Run DEAP eaSimple evolutionary algorithm.
         predict(X=None) -> np.ndarray:
-            Predicts X data. If X == None then predicts X_test.
+            Evaluate tree on input data and return predictions.
         get_model_summary():
-            Summarize the trained model's attributes.
-        _extract_rules(tree):
-            Extract rules from the tree.
+            Serialize tree metrics (depth, nodes, rules) to JSON.
         visualize_model():
-            Visualize the GP model.
+            Generate Graphviz PNG visualization of tree structure.
         explain_shap():
-            Explain the model using SHAP method.
-        explain_lime():
-            Explain the model using LIME algorithm.
+            Compute SHAP values via KernelExplainer and save plot.
+        explain_lime(instances):
+            Generate LIME local explanations for specific instances.
     """
     def __init__( # pylint: disable=too-many-positional-arguments, too-many-arguments
             self,
@@ -86,21 +111,22 @@ class GeneticProgrammingModel(BaseModel):
             logger: LoggerHandler,
             model_filename: str = "gp_model.pickle",
             folder_path: str = MODELS_FOLDER):
-        """Initialize Tree-based Genetic Programming Model.
-        
-        The constructor sets model's attribute input_features,
-        retype X values into floats and registers fitness functions according to the task type.
-        Moreover the initialization of primitive set and toolbox are done here.
+        """Initialize genetic programming model and primitive set.
+
+        Sets up DEAP fitness functions, primitive set (regression or classification),
+        and toolbox. Converts features to float type for GP compatibility.
 
         Args:
-            X (pd.DataFrame): Dataset features.
-            y (pd.DataFrame): Dataset targets.
-            y_encoder (LabelEncoder): Encoder for target column.
-            config (dict): Configuration.
-            logger (LoggerHandler): Handler for logging.
-            model_filename (str, optional): Name of the file for storing best individual.
-            folder_path (str, optional): Path to the folder where
-                GP file should be stored/loaded from.
+            X (pd.DataFrame): Training features.
+            y (pd.DataFrame | pd.Series): Training targets.
+            y_encoder (LabelEncoder): Encoder for categorical targets (or None).
+            config (dict): Configuration with data, task, loss, and training settings.
+            logger (LoggerHandler): Logger instance.
+            model_filename (str): Filename for pickled tree (default: "gp_model.pickle").
+            folder_path (str): Directory for model files (default: MODELS_FOLDER).
+
+        Raises:
+            UnsupportedTaskTypeException: If task_type not in ['regression', 'classification'].
         """
         super().__init__(
             X=X,
@@ -147,11 +173,14 @@ class GeneticProgrammingModel(BaseModel):
         self.toolbox = self._initialize_toolbox()
 
     def _initialize_pset_regression(self) -> gp.PrimitiveSet:
-        """
-        Defines the primitive set for symbolic regression.
+        """Build primitive set for symbolic regression.
+
+        Registers arithmetic, non-linear (sin, cos, tanh), polynomial (square, pow, exp),
+        safe math (abs, sqrt, log), and ephemeral constants. Uses protected operations
+        to prevent runtime errors.
 
         Returns:
-            gp.PrimitiveSet: Primitive set.
+            gp.PrimitiveSet: Untyped primitive set with renamed arguments matching feature names.
         """
         pset = gp.PrimitiveSet("MAIN", len(self.input_features))
 
@@ -189,11 +218,14 @@ class GeneticProgrammingModel(BaseModel):
         return pset
 
     def _initialize_pset_classification(self) -> gp.PrimitiveSetTyped:
-        """
-        Defines the primitive set for classification tasks.
+        """Build typed primitive set for classification tasks.
+
+        Registers boolean operations (lt, gt, and, or, not), arithmetic (add, sub, mul, div),
+        conditionals (if-then-else, if3), and class label terminals. Uses type system to
+        enforce tree validity.
 
         Returns:
-            gp.PrimitiveSetTyped: Primitive set.
+            gp.PrimitiveSetTyped: Typed primitive set with int output type (class label).
         """
 
         # Output type is int (class label)
@@ -253,13 +285,14 @@ class GeneticProgrammingModel(BaseModel):
         return pset
 
     def _initialize_toolbox(self):
-        """Setup DEAP toolbox.
+        """Configure DEAP toolbox with genetic operators and constraints.
 
-        The function creates new toolbox and register basic attributes,
-        genetic operators and adds limit for tree height.
-        
+        Registers individual/population generators, compile function, selection
+        (tournament), crossover (one-point), mutation (uniform), and depth limits
+        (max 20) to prevent bloat.
+
         Returns:
-            Toolbox: Toolbox.
+            base.Toolbox: Configured DEAP toolbox.
         """
 
         toolbox = base.Toolbox()
@@ -282,10 +315,12 @@ class GeneticProgrammingModel(BaseModel):
         return toolbox
 
     def save_model(self):
-        """Saves the trained GP Tree-based model to a file using pickle.
+        """Pickle the best individual tree to disk.
+
+        Saves tree as a string representation in a dictionary.
 
         Raises:
-            RuntimeError: If no model is ready for saving.
+            RuntimeError: If no trained model exists (best_individual is None).
         """
 
         # 1. Check if the model exists
@@ -303,11 +338,13 @@ class GeneticProgrammingModel(BaseModel):
         print(f"Model saved successfully to {self.file_path}")
 
     def load_model(self):
-        """Loads the saved GP Tree-based model from a file.
+        """Load and reconstruct pickled GP tree.
+
+        Rebuilds toolbox and parses tree string back into PrimitiveTree.
 
         Raises:
-            FileNotFoundError: If filepath is not leading to any file.
-            RuntimeError: If the reconstruction of the model failed.
+            FileNotFoundError: If model file does not exist at file_path.
+            RuntimeError: If tree reconstruction fails (missing primitives, type mismatch).
         """
 
         # Checks for the file path validity
@@ -338,14 +375,21 @@ class GeneticProgrammingModel(BaseModel):
         print("GP model loaded successfully.")
 
     def _evaluate(self, individual, X, y, bloat_penalty) -> float:
-        """Evaluate individual function.
+        """Evaluate individual fitness (MSE or accuracy + bloat penalty).
 
-        The functions calculates mse for regression tasks and accuracy score
-        for classification tasks. This is viewed as fitness function
-        for evaluating individual on X and y data.
-        
+        Compiles tree to callable, predicts on X, computes error/accuracy, and
+        applies bloat penalty for trees >15 nodes.
+
+        Args:
+            individual (gp.PrimitiveTree): Tree to evaluate.
+            X (pd.DataFrame): Feature data.
+            y (pd.Series): Target values.
+            bloat_penalty (float): Penalty per node for large trees.
+
         Returns:
-            float: Computed mse or accuracy score according to task type.
+            tuple[float]: (MSE + penalty,) for regression
+                or (accuracy - penalty,) for classification.
+            int: large penalty (999999.0 or 0.0) for NaN/Inf/errors.
         """
         # 1. Set task type
         is_regression = self.task_type == TASK_TYPES[0]
@@ -388,13 +432,19 @@ class GeneticProgrammingModel(BaseModel):
             return (999999.0,) if is_regression else (0.00, )
 
     def create_and_train_model(self, training_config: dict):
-        """Train the GP Tree-based model.
+        """Evolve GP trees using DEAP's eaSimple algorithm.
 
-        The function uses eaSimple algorithm from DEAP library for training the model.
-        Best individual is in the end saved to the model's best_individual attribute.
+        Runs evolution for specified generations with crossover, mutation, and
+        tournament selection. Stores best individual in self.best_individual.
 
         Args:
-            training_config: Model's training configuration.
+            training_config (dict): Training parameters:
+                - population_size (int): Initial population size
+                - generations (int): Number of evolution cycles
+                - crossover_pb (float): Crossover probability (0.0-1.0)
+                - mutation_pb (float): Mutation probability (0.0-1.0)
+                - penalty_bloat (float): Bloat penalty coefficient
+                - elitism (bool): Preserve top 5% of population
         """
 
         # Sets training config
@@ -447,19 +497,19 @@ class GeneticProgrammingModel(BaseModel):
         print(best_individual)
 
     def predict(self, X=None) -> np.ndarray:
-        """
-        Predict target values using the trained Tree-based GP model.
+        """Evaluate best tree on input data to generate predictions.
+
+        For regression: returns raw tree outputs.
+        For classification: maps tree outputs to nearest valid class label.
 
         Args:
-            X (pd.DataFrame, optional): Input features.
-                If None, uses self.X_test.
-
-        Raises:
-            ValueError: If best individual model is missing.
-            ValueError: If X data and self.X_test data are missing.
+            X (pd.DataFrame, optional): Input features. If None, uses self.X_test.
 
         Returns:
-            np.ndarray: Predicted values.
+            np.ndarray: Predicted values (continuous or class labels).
+
+        Raises:
+            ValueError: If best_individual is None or X_test is missing.
         """
         # 1. Ensure model exists
         if self.best_individual is None:
@@ -491,16 +541,19 @@ class GeneticProgrammingModel(BaseModel):
 
     # --- EXPLAINING FUNCTIONS ---
     def get_model_summary(self):
-        """
-        Summarizes the GP model for interpretability and saves the summary into a file.
+        """Serialize GP tree structure and metrics to JSON.
 
-        Includes:
-        - Decision tree structure (nodes, depth, rules).
-        - Complexity metrics (number of rules, branching factor).
-        - Model's loss value.
+        Saves:
+        - Tree string representation
+        - Number of nodes and depth
+        - Extracted rules (human-readable)
+        - Average branching factor
+        - Loss value
+
+        Output: `{EXPLANATIONS_STORE_FOLDER}/gp_summarize_{target}.json`
 
         Raises:
-            ValueError: If no model was trained.
+            ValueError: If no trained model exists.
         """
         if self.best_individual is None:
             raise ValueError("No trained model exists. Train the model before summarizing.")
@@ -538,14 +591,15 @@ class GeneticProgrammingModel(BaseModel):
         print(f"Tree-basde GP model summary saved to {output_file}.")
 
     def visualize_model(self):
-        """
-        Visualize the decision tree.
+        """Generate Graphviz visualization of GP tree.
 
-        This function generates a graphical representation of the best individual
-        (tree) for each target variable using the `graphviz` library.
+        Creates a directed graph with function nodes (ellipses, blue) and
+        terminal nodes (boxes, gray). Saves as PNG.
+
+        Output: `{EXPLANATIONS_STORE_FOLDER}/gp_visualize_{target}.png`
 
         Raises:
-            ValueError: If no trained model exists for any target variable.
+            ValueError: If no trained model exists.
         """
         if self.best_individual is None:
             raise ValueError("No trained model exists. Train the model before visualizing.")
@@ -564,11 +618,18 @@ class GeneticProgrammingModel(BaseModel):
         print(f"Visualization for {self.target_column} saved to {output_file}.png")
 
     def explain_shap(self): # pylint: disable=signature-differs
-        """
-        Explain Tree-based GP model using SHAP.
+        """Compute SHAP values using KernelExplainer and save summary plot.
+
+        Compiles tree to prediction function, runs SHAP on test set, and generates
+        feature importance visualization.
+
+        Outputs:
+        - `gp_shap_values_{target}.npz`
+        - `gp_shap_metadata_{target}.json`
+        - `gp_shap_figure_{target}.png`
 
         Raises:
-            ValueError: If no model was trained.
+            ValueError: If no trained model exists.
         """
         if self.best_individual is None:
             raise ValueError(f"No trained model for target `{self.target_column}`")
@@ -632,11 +693,17 @@ class GeneticProgrammingModel(BaseModel):
         print(f"SHAP figure saved to: {figure_file}")
 
     def explain_lime(self, instances):
-        """
-        Explain the GP model using LIME for the given instances.
+        """Generate LIME local explanations for specific training instances.
+
+        Compiles tree to prediction function, creates LIME explainer, and explains
+        specified instances. Saves HTML and JSON formats.
 
         Args:
-            instances (pd.DataFrame or np.ndarray): Instances to explain.
+            instances (list[int]): Indices of training instances to explain.
+
+        Outputs:
+        - `gp_lime_{target}_{index}.html` (interactive plot)
+        - `gp_lime_{target}_{index}.json` (structured explanation)
 
         Raises:
             ValueError: If no trained model exists.
@@ -724,18 +791,23 @@ class GeneticProgrammingModel(BaseModel):
 
 
 def _add_nodes_edges(expr, parent_id=None, tree=None, index=0, dot=None):
-    """
-    Recursively add nodes and edges to the graph for visualization.
+    """Recursively build Graphviz nodes and edges for GP tree visualization.
+
+    Traverses the tree depth-first, adding function nodes (Primitives) and
+    terminal nodes (constants, variables) to the Graphviz Digraph.
 
     Args:
-        expr: The current node (Primitive or Terminal) for processing.
-        parent_id: The node parent's id.
-        tree: The entire PrimitiveTree structure.
-        index: The current index of the node in the tree.
-        dot: Digraph object.
+        expr (gp.Primitive | gp.Terminal): Current node to process.
+        parent_id (str, optional): Parent node ID for edge creation.
+        tree (gp.PrimitiveTree): Complete tree structure for indexing.
+        index (int): Current node index in tree.
+        dot (graphviz.Digraph): Graph object to modify.
 
     Returns:
-        int: The next index to process in the tree.
+        int: Next index to process (updated after processing children).
+
+    Raises:
+        ValueError: If expr is a PrimitiveTree instead of Primitive/Terminal.
     """
 
     # Unique ID based on tree index
@@ -775,14 +847,20 @@ def _add_nodes_edges(expr, parent_id=None, tree=None, index=0, dot=None):
 
 
 def _extract_rules(tree):
-    """
-    Extract the rules from a GP tree.
+    """Convert GP tree to human-readable rule strings.
+
+    Recursively traverses tree and builds nested function call representation.
 
     Args:
-        tree (gp.PrimitiveTree): The tree to extract rules from.
+        tree (gp.PrimitiveTree): Tree to extract rules from.
 
     Returns:
-        list: A list of rules as strings.
+        list[str]: List containing one rule string (e.g., ["add(x0, mul(x1, 2.5))"]).
+
+    Example:
+        >>> tree = ...  # trained GP tree
+        >>> _extract_rules(tree)
+        ['add(protected_div(x0, x1), sin(x2))']
     """
     rules = []
 

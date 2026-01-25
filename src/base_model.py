@@ -1,6 +1,11 @@
-"""BaseModel module.
+"""Base model abstractions for training and explainability.
 
-This module contains abstract class for models.
+Defines the abstract `BaseModel` to standardize common behaviors across model
+implementations (e.g., Neural Network, Genetic Programming): configuration setup,
+data splitting, persistence (save/load), training, prediction, loss evaluation,
+and XAI hooks for SHAP and LIME. Also includes helpers for selecting and
+computing loss functions and a utility to compute and persist SHAP values
+and metadata.
 """
 from abc import ABC, abstractmethod
 import os
