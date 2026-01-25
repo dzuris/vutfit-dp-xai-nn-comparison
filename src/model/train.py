@@ -19,7 +19,7 @@ def train_model( # pylint: disable=too-many-arguments, too-many-positional-argum
         config: dict,
         logger: LoggerHandler) -> BaseModel:
     """
-    Function for training the NN and GP models.
+    Function for training the selected model.
 
     The functions obtains model selection, and trains model on provided dataset. Moreover
     the elapsed time for training is logged.
@@ -61,11 +61,12 @@ def train_model( # pylint: disable=too-many-arguments, too-many-positional-argum
         model_filename=model_filename
     )
 
+    # Training the model
+    print(f"\nTraining model for target: {target_column}")
+
     # Measure training time
     start_time = time.time()
 
-    # Training the model
-    print(f"\nTraining model for target: {target_column}")
     model.create_and_train_model(training_config=training_config)
 
     # Stop measuring training time
