@@ -1,7 +1,41 @@
-"""xai.py - Explaining the model.
+"""XAI (Explainable AI) pipeline entry point.
 
-This module loads the model and explain it.
+This module provides a command-line interface for explaining a trained model
+using multiple XAI methods: SHAP (global importance), LIME (local explanations),
+model visualization, and model summarization. It handles configuration loading,
+data preprocessing, model loading, method execution, and logging.
+
+Usage:
+    python -m src.xai.main --config src/xai/config_xai.yaml
+
+Examples:
+    # Use default configuration
+    python -m src.xai.main
+
+    # Use custom configuration file
+    python -m src.xai.main --config my_xai_config.yaml
+
+    # Via Makefile
+    make xai
+
+Configuration:
+    The YAML config file should specify:
+    - selected_model: "nn" or "gp"
+    - data: Dataset path, target columns, preprocessing options
+    - xai.method: One of ["shap", "lime", "visualize", "summarize"]
+    - xai.model_target_column_name: Target column to explain (must exist in data)
+    - xai.model_filename_to_explain: Saved model filename to load
+    - xai.lime.index_instance_to_explain: Indices of instances for LIME
+    - logging: Logger configuration
+    - output directories: Where to store generated artifacts
+
+See Also:
+    src.i_model.get_model: Factory to obtain model implementation
+    src.preprocess.load_and_preprocess_data: Data loading and preprocessing
+    src.utils.EXPLANATIONS_STORE_FOLDER: Output directory for XAI artifacts
+    src.exceptions.UnsupportedXaiMethodException: Error type for unsupported methods
 """
+
 import os
 import time
 import argparse
@@ -20,9 +54,42 @@ from src.exceptions import UnsupportedXaiMethodException
 XAI_METHODS = ['shap', 'lime', 'visualize', 'summarize']
 
 def main():
-    """Main program function.
+    """Execute the XAI pipeline for a trained model.
 
-    The program explains selected model with selected xai method.
+    Workflow:
+        1. Ignore warnings and set reproducibility seeds
+        2. Parse command-line arguments for config file path
+        3. Load configuration and initialize logger
+        4. Load and preprocess dataset
+        5. Load model checkpoint specified in config
+        6. Execute selected XAI method:
+           - "shap": Global feature importance via SHAP
+           - "lime": Local explanations for specified instances
+           - "visualize": Model architecture visualization
+           - "summarize": Human-friendly model summary
+        7. Log execution time and print completion message
+
+    Command-line Arguments:
+        --config (str): Path to YAML configuration file.
+                        Default: 'config.yaml'
+
+    Raises:
+        ValueError: If `xai.model_target_column_name` is not present in the dataset.
+        UnsupportedXaiMethodException: If selected XAI method is unknown or unsupported.
+        FileNotFoundError: If model file or dataset path in config do not exist.
+
+    Side Effects:
+        - Creates output directory `EXPLANATIONS_STORE_FOLDER` if missing
+        - Writes XAI artifacts (e.g., SHAP npz/json, LIME json, summaries) to disk
+        - Logs progress and timing into configured logger
+
+    Example:
+        $ python -m src.xai.main --config src/xai/config_xai.yaml
+
+    Notes:
+        - Ensure the model checkpoint exists at `xai.model_filename_to_explain`
+        - `xai.model_target_column_name` must match one of the dataset's target columns
+        - For LIME, supply indices via `xai.lime.index_instance_to_explain`
     """
     ignore_warnings()
     # Set seed for reproducibility
