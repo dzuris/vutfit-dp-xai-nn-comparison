@@ -1,5 +1,5 @@
 # output_filename: "txtexpl.txt"
-# output_folder: "tmp"
+output_folder: "tmp"
 folder_with_explanations: "tmp/exp"
 model_type: "nn" # Options: 'nn' and 'gp'
 target_column: "Y1"

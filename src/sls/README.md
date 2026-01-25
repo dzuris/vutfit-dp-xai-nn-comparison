@@ -1,12 +1,10 @@
-# Summarization - LIME - SHAP Explanation
+# SHAP - LIME - Summarization Explanation
 
 The SLS algorithm is explaining multiple obtained explanation methods into one text explanation.
 
-## Running the file
+## Configuration
 
-1. Set `config_sls.yaml`.
-
-```txt
+```yaml
 # output_filename: "txtexpl.txt"    - OPTIONAL: output filename, default to 'sls_explanation.txt'
 # output_folder: "tmp"              - OPTIONAL: output folder, default to '.'
 folder_with_explanations: "tmp/exp" - folder containing the explanations
@@ -27,4 +25,10 @@ Lime files:
 Summarize file:
 - Summarization: "{model_type} _ summarize _ {target_column}.json"
 
-2. Run `make sls` from project root directory.
+## Running the script
+
+Run `make sls`, or `python -m src.sls.main --config "path/to/config.yaml"` in the project root folder.
+
+## Authors and acknowledgement
+
+Adam Dzurilla <xdzuri00@stud.fit.vutbr.cz>

@@ -1,7 +1,7 @@
 """Template-based explainer for SHAP, LIME and Model Summarization.
 
 This module provides human-readable text explanations combining SHAP values,
-LIME explanations, and model summarization for non-expert users.
+LIME explanation, and model summarization for non-expert users.
 """
 import json
 from typing import Dict, List
@@ -9,10 +9,22 @@ import numpy as np
 
 
 class ExplanationGenerator:
-    """Generates human-readable explanations from SHAP, LIME, and model data."""
+    """Create human-readable explainability reports.
 
-    def __init__(self, model_type: str = "nn"):
-        """Initialize the explanation generator."""
+    Attributes:
+        model_type: Selected model family.
+        shap_data: Dict with SHAP arrays and background data.
+        lime_explanation: Parsed LIME explanation JSON for one instance.
+        model_summary: Model architecture/metrics dictionary.
+        shap_metadata: Feature names, attributes, and task info.
+    """
+
+    def __init__(self, model_type):
+        """Initialize the explanation generator.
+        
+        Args:
+            model_type: Model family identifier (e.g., "nn" or "gp").
+        """
         self.model_type = model_type
         self.shap_data = None
         self.lime_explanation = None
@@ -40,7 +52,7 @@ class ExplanationGenerator:
         """Load LIME explanations from JSON files.
         
         Args:
-            lime_files: List of paths to LIME explanation JSON files
+            lime_file: Path to LIME explanation JSON file
         """
         with open(lime_file, 'r', encoding='utf-8') as f:
             self.lime_explanation = json.load(f)
@@ -280,9 +292,6 @@ class ExplanationGenerator:
     def explain_lime_instance(self) -> str:
         """Explain LIME prediction for a specific instance.
         
-        Args:
-            instance_idx: Index of the LIME explanation to use
-            
         Returns:
             String explanation of LIME
         """

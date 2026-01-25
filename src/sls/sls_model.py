@@ -6,9 +6,36 @@ from src.sls.explainer import ExplanationGenerator
 DEFAULT_OUTPUT_FILENAME = "sls_explanation.txt"
 DEFAULT_OUTPUT_FOLDER = "."
 
-class SlsExplainer(): # pylint: disable=too-few-public-methods
-    """SHAP-LIME-Summarization Explainer."""
+class SlsExplainer():
+    """SLS (SHAP-LIME-Summarization) Explainer.
+
+    This class orchestrates the generation of human-readable model explanations by
+    combining SHAP feature importance analysis, LIME local explanations, and model
+    architecture summaries into a unified report for non-expert users.
+
+    Attributes:
+        output_file (str): Path where the generated explanation report is saved.
+        generator (ExplanationGenerator): Template-based explanation report generator.
+        explanation_text (str): The complete generated explanation text.
+
+    Methods:
+        get_explanation() -> str:
+            Retrieves the generated explanation report text combining model
+            architecture, SHAP analysis, LIME analysis, and method comparison.
+        get_output_file() -> str:
+            Retrieves the output file path where the explanation report was saved.
+    """
     def __init__(self, config: dict):
+        """Initialize explainer and generate explanation report.
+
+        Loads configuration, initializes ExplanationGenerator, loads all XAI
+        artifacts (SHAP, LIME, model summary) based on config paths, and
+        generates the combined explanation report.
+
+        Args:
+            config (dict): Configuration with model_type, target_column,
+                          lime_instance_index, folder_with_explanations, etc.
+        """
         # Register path to output file
         filename = config.get("output_filename", DEFAULT_OUTPUT_FILENAME)
         output_folder = config.get("output_folder", DEFAULT_OUTPUT_FOLDER)

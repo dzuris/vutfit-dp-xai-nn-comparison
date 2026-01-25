@@ -70,9 +70,39 @@ def validate_configuration(config: dict):
 
 
 def main(): # pylint: disable=too-many-locals
-    """Main program function for generating the model.
-    
-    Runs loading config, validating config, preprocessing, training and obtaining loss values.
+    """Model training pipeline entry point.
+
+    This module provides a command-line interface for training machine learning models
+    (Neural Networks or Genetic Programming) on regression or classification tasks.
+    It handles configuration validation, data preprocessing, model training, and
+    loss evaluation.
+
+    Usage:
+        python -m src.model.main --config config_training.yaml
+
+    Examples:
+        # Use default configuration
+        python -m src.model.main
+
+        # Use custom configuration file
+        python -m src.model.main --config my_config.yaml
+
+        # Via Makefile
+        make model
+
+    Configuration:
+        The YAML config file should specify:
+        - selected_model: "nn" (neural network) or "gp" (genetic programming)
+        - data: Dataset path, target columns, task type, preprocessing options
+        - loss_function: Metric for evaluating model performance
+        - logging: Log file settings
+        - model_training: model-specific training hyperparameters
+
+    See Also:
+        src.model.train.train_model: Model training orchestrator
+        src.preprocess.load_and_preprocess_data: Data loading and preprocessing
+        src.nn_model.NNModel: Neural network implementation
+        src.gp_model.GPModel: Genetic programming implementation
     """
     # Set seed for reproducibility
     set_reproducibility()
