@@ -28,8 +28,6 @@ from src.gp_primitives import (
     if_then_else,
     if3,
     gt0,
-    to_int,
-    to_float,
     protected_div,
     protected_sqrt,
     protected_log,
@@ -38,7 +36,7 @@ from src.gp_primitives import (
     protected_reciprocal,
     protected_not
 )
-from src.gp_types import TInt, TFloat, TBool
+from src.gp_types import TBool
 
 class GeneticProgrammingModel(BaseModel):
     """Genetic Programming Model.
@@ -198,9 +196,9 @@ class GeneticProgrammingModel(BaseModel):
             gp.PrimitiveSetTyped: Primitive set.
         """
 
-        # Output type is TInt (class label)
-        input_types = [TFloat] * len(self.input_features)
-        pset = gp.PrimitiveSetTyped("MAIN", input_types, TInt)
+        # Output type is int (class label)
+        input_types = [float] * len(self.input_features)
+        pset = gp.PrimitiveSetTyped("MAIN", input_types, int)
 
         # Rename arguments to match columns
         for i, col in enumerate(self.input_features):
@@ -209,31 +207,27 @@ class GeneticProgrammingModel(BaseModel):
         # Boolean operations
         pset.addTerminal(True, TBool)
         pset.addTerminal(False, TBool)
-        pset.addPrimitive(operator.lt, [TFloat, TFloat], TBool)
-        pset.addPrimitive(operator.gt, [TFloat, TFloat], TBool)
-        pset.addPrimitive(operator.le, [TFloat, TFloat], TBool)
-        pset.addPrimitive(operator.ge, [TFloat, TFloat], TBool)
-        pset.addPrimitive(gt0, [TFloat], TBool)
+        pset.addPrimitive(operator.lt, [float, float], TBool)
+        pset.addPrimitive(operator.gt, [float, float], TBool)
+        pset.addPrimitive(operator.le, [float, float], TBool)
+        pset.addPrimitive(operator.ge, [float, float], TBool)
+        pset.addPrimitive(gt0, [float], TBool)
 
-        pset.addPrimitive(operator.eq, [TInt, TInt], TBool)
-        pset.addPrimitive(operator.ne, [TInt, TInt], TBool)
+        pset.addPrimitive(operator.eq, [int, int], TBool)
+        pset.addPrimitive(operator.ne, [int, int], TBool)
 
         # Arithmetic float
-        pset.addPrimitive(operator.add, [TFloat, TFloat], TFloat)
-        pset.addPrimitive(operator.sub, [TFloat, TFloat], TFloat)
-        pset.addPrimitive(operator.mul, [TFloat, TFloat], TFloat)
-        pset.addPrimitive(operator.neg, [TFloat], TFloat)
-        pset.addPrimitive(protected_div, [TFloat, TFloat], TFloat)
+        pset.addPrimitive(operator.add, [float, float], float)
+        pset.addPrimitive(operator.sub, [float, float], float)
+        pset.addPrimitive(operator.mul, [float, float], float)
+        pset.addPrimitive(operator.neg, [float], float)
+        pset.addPrimitive(protected_div, [float, float], float)
 
         # Non-linearities
-        pset.addPrimitive(np.tanh, [TFloat], TFloat)
-        pset.addPrimitive(np.abs, [TFloat], TFloat)
-        pset.addPrimitive(protected_log, [TFloat], TFloat)
-        pset.addPrimitive(protected_sqrt, [TFloat], TFloat)
-
-        # Explicit converters
-        pset.addPrimitive(to_int, [TFloat], TInt)
-        pset.addPrimitive(to_float, [TInt], TFloat)
+        pset.addPrimitive(np.tanh, [float], float)
+        pset.addPrimitive(np.abs, [float], float)
+        pset.addPrimitive(protected_log, [float], float)
+        pset.addPrimitive(protected_sqrt, [float], float)
 
         # Logical operators
         pset.addPrimitive(operator.and_, [TBool, TBool], TBool)
@@ -241,23 +235,20 @@ class GeneticProgrammingModel(BaseModel):
         pset.addPrimitive(protected_not, [TBool], TBool)
 
         # Conditional if-then-else
-        pset.addPrimitive(if_then_else, [TBool, TInt, TInt], TInt)
-        pset.addPrimitive(if3, [TBool, TBool, TInt, TInt, TInt], TInt)
+        pset.addPrimitive(if_then_else, [TBool, int, int], int)
+        pset.addPrimitive(if3, [TBool, TBool, int, int, int], int)
 
         # Class label terminals
         for cls in self.y_encoder.classes_:
             encoded = int(self.y_encoder.transform([cls])[0])
-            pset.addTerminal(encoded, TInt)
+            pset.addTerminal(encoded, int)
 
         # Numeric constants for thresholds
         pset.addEphemeralConstant(
             "rand_float",
             functools.partial(random.uniform, -5.0, 5.0),
-            TFloat
+            float
         )
-
-        # Add a terminal that accepts any float for compatibility during loading
-        pset.addTerminal(0.0, TFloat)
 
         return pset
 

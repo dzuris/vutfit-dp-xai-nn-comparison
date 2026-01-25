@@ -48,28 +48,6 @@ def gt0(x):
     """
     return np.asarray(x, dtype=float) > 0
 
-def to_float(x):
-    """Convert number to float.
-
-    Args:
-        x (numeric): Number for conversion.
-
-    Returns:
-        float: Converted number.
-    """
-    return np.asarray(x, dtype=float)
-
-def to_int(x):
-    """Convert number to int.
-
-    Args:
-        x (numeric): Number for conversion.
-
-    Returns:
-        int: Converted number.
-    """
-    return np.asarray(x, dtype=int)
-
 def protected_div(a, b):
     """Protected division against zero division.
 

@@ -14,7 +14,7 @@ import yaml
 
 
 # Flag option if models should be retrained using these script
-SHOULD_TRAIN_MODEL = False
+SHOULD_TRAIN_MODEL = True
 
 
 class TestRunner:
