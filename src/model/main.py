@@ -3,7 +3,7 @@ import argparse
 import sys
 from pathlib import Path
 from src.preprocess import load_and_preprocess_data
-from src.training.train import train_model
+from src.model.train import train_model
 from src.logging_handler import LoggerHandler
 from src.utils import (
     LOSS_FUNCTIONS_REGRESSION,
@@ -23,7 +23,7 @@ def validate_configuration(config: dict):
     """Config validation.
 
     The function validates configuration settings before training and raises exceptions
-    if config is not valid.
+    if config is invalid.
 
     Args:
         config (dict): Configuration to validate.
@@ -82,7 +82,10 @@ def main(): # pylint: disable=too-many-locals
         description='Program for getting explanations from the model.'
     )
     parser.add_argument(
-        '--config', type=str, default='config.yaml', help='Path to the configuration file'
+        '--config',
+        type=str,
+        default='config.yaml',
+        help='Path to the configuration file'
     )
 
     # Parse arguments
