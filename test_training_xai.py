@@ -57,14 +57,13 @@ class TestRunner:
 
     # XAI methods to test
     XAI_METHODS = ['summarize', 'shap', 'lime', 'visualize']
-    # XAI_METHODS = ['summarize', 'lime', 'visualize']
 
     def __init__(self, output_dir='test_results', quiet=False):
         """Initialize test runner.
         
         Args:
-            output_dir: Directory to save test results
-            quiet: If True, suppress detailed output
+            output_dir (str, optional): Directory to save test results
+            quiet (bool): If True, suppress detailed output
         """
         self.output_dir = Path(output_dir)
         self.quiet = quiet
@@ -81,10 +80,10 @@ class TestRunner:
         self.base_xai_config = self._load_base_config('src/xai/config_xai.yaml')
 
     def _load_base_config(self, config_path):
-        """Load base configuration as template.
+        """Load base configuration as a template.
         
         Args:
-            config_path: Path to config file.
+            config_path (str): Path to config file.
             
         Returns:
             dict: Configuration dictionary
@@ -93,7 +92,12 @@ class TestRunner:
             return yaml.safe_load(f)
 
     def log(self, message, level='INFO'):
-        """Log message to console and file."""
+        """Log message to console and the file.
+        
+        Args:
+            message (str): Message text.
+            level (str, optional): Log level.
+        """
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         log_message = f"[{timestamp}] [{level}] {message}"
 
@@ -109,8 +113,8 @@ class TestRunner:
         """Create temporary training configuration for specific dataset and model.
         
         Args:
-            dataset_name: Name of dataset (key in DATASETS dict)
-            model_type: 'NeuralNetwork' or 'GeneticProgramming'
+            dataset_name (str): Name of dataset (key in DATASETS dict)
+            model_type (str): 'NeuralNetwork' or 'GeneticProgramming'
         
         Returns:
             Path to created config file
@@ -144,10 +148,10 @@ class TestRunner:
         """Create temporary XAI configuration for specific model and method.
         
         Args:
-            dataset_name: Name of dataset
-            model_type: 'NeuralNetwork' or 'GeneticProgramming'
-            target: Target column name
-            method: XAI method ('shap', 'lime', 'visualize', 'summarize')
+            dataset_name (str): Name of dataset
+            model_type (str): 'NeuralNetwork' or 'GeneticProgramming'
+            target (str): Target column name
+            method (str): XAI method ('shap', 'lime', 'visualize', 'summarize')
         
         Returns:
             Path to created config file
@@ -190,8 +194,8 @@ class TestRunner:
         """Run shell command and capture output.
         
         Args:
-            command: Command to run
-            description: Human-readable description
+            command (str): Command to run
+            description (str): Human-readable description
         
         Returns:
             Tuple of (success: bool, output: str)
@@ -228,15 +232,15 @@ class TestRunner:
         """Train a model on specified dataset.
         
         Args:
-            dataset_name: Name of dataset
-            model_type: 'NeuralNetwork' or 'GeneticProgramming'
+            dataset_name (str): Name of dataset
+            model_type (str): 'NeuralNetwork' or 'GeneticProgramming'
         
         Returns:
             bool: Success status
         """
         config_path = self.create_training_config(dataset_name, model_type)
 
-        command = f"python3 -m src.training.main --config {config_path}"
+        command = f"python3 -m src.model.main --config {config_path}"
         description = f"Training {model_type} on {dataset_name}"
 
         success, _ = self.run_command(command, description)
@@ -256,10 +260,10 @@ class TestRunner:
         """Run XAI explanation on trained model.
         
         Args:
-            dataset_name: Name of dataset
-            model_type: 'NeuralNetwork' or 'GeneticProgramming'
-            target: Target column name
-            method: XAI method
+            dataset_name (str): Name of dataset
+            model_type (str): 'NeuralNetwork' or 'GeneticProgramming'
+            target (str): Target column name
+            method (str): XAI method
         
         Returns:
             bool: Success status
@@ -287,8 +291,8 @@ class TestRunner:
         """Run complete test suite for a dataset.
         
         Args:
-            dataset_name: Name of dataset to test
-            models: List of model types to test (None = all)
+            dataset_name (list[str]): Name of dataset to test
+            models (list[str]): List of model types to test (None = all)
         
         Returns:
             dict: Summary of results
@@ -349,8 +353,8 @@ class TestRunner:
         """Run complete test suite.
         
         Args:
-            datasets: List of dataset names to test (None = all)
-            models: List of model types to test (None = all)
+            datasets (list[str]): List of dataset names to test (None = all)
+            models (list[str]): List of model types to test (None = all)
         
         Returns:
             dict: Complete test results
@@ -385,7 +389,7 @@ class TestRunner:
         """Generate and save test report.
         
         Args:
-            summaries: List of test summaries
+            summaries (list[dict]): List of test summaries
         """
         self.log("\n" + "="*70)
         self.log("TEST SUMMARY REPORT")

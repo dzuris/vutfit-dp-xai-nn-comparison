@@ -73,28 +73,22 @@ Check if Graphviz was successfully installed:
 dot -V
 ```
 
-### Running program
-
-Edit `config.yaml` file:
-
-1. Set `dataset_path`, `type`, `target_columns`, `selected_model` and `loss_function`.
-2. In `type` we set the type of task (regression or classification).
-3. `target_columns` is a list of one or multiple column names to be predicted.
-4. `selected_model` could be NeuralNetwork or GeneticProgramming.
-5. `loss_function` should be picked from predefined options.
-6. For training you could change model settings in `model_training` in configuration.
-
-For more info about datasets, check `datasets_description.txt` file if attached.
-
-#### Makefile
+### Makefile
 
 `Makefile` file contains commands running different scripts. For example:
 
 ```bash
-make model  # Runs training and calculates Loss
-make xai    # Explains model
-make clean  # Cleans logs and models
+make model  # Trains the model
+make xai    # Explains the model
+make sls    # Creates summarization according to explanatinos
+make test   # Runs test script for training and explaining the models
+make test-sls   # Run test of SLS algorithm
+make doc    # Generates the software documentation
+make clean-doc  # Cleans generated documentation
+make clean  # Cleans logs, models and temporary files
 ```
+
+For setting configurations, check README for each script in their respective folder.
 
 ## PyLint
 
@@ -102,7 +96,16 @@ Run:
 
 ```bash
 pylint --rcfile="/path/to/your/custom_pylintrc_file" your_python_file.py
+
+# e.g.
+pylint --rcfile=".pylintrc" src/main.py
 ```
+
+## Software documentation
+
+1. Generate the software documentation using `Makefile`
+
+2. Open `index.html` in docs_pydoc to see the documentation
 
 ## Authors and acknowledgement
 
