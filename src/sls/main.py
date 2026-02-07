@@ -1,4 +1,4 @@
-"""SLS (SHAP-LIME-Summarization) explanation generator.
+"""SLS (Summarization-LIME-SHAP) explanation generator.
 
 This module provides a command-line interface for generating human-readable
 explanations from trained models using SHAP, LIME, and model summarization.

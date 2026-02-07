@@ -103,9 +103,9 @@ pylint --rcfile=".pylintrc" src/main.py
 
 ## Software documentation
 
-1. Generate the software documentation using `Makefile`
+1. Generate the software documentation using `Makefile`, command `make doc`.
 
-2. Open `index.html` in docs_pydoc to see the documentation
+2. Open `index.html` in `docs_pydoc` folder to see the documentation.
 
 ## Authors and acknowledgement
 
