@@ -76,7 +76,7 @@ class TestRunner:
         self.results = []
 
         # Load base configurations (templates)
-        self.base_training_config = self._load_base_config('src/training/config_training.yaml')
+        self.base_training_config = self._load_base_config('src/model/config_training.yaml')
         self.base_xai_config = self._load_base_config('src/xai/config_xai.yaml')
 
     def _load_base_config(self, config_path):

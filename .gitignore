@@ -10,7 +10,8 @@ logs
 datasets/.DS_Store
 test_results
 sls_explanation.txt
-docs_pydoc
+docs_pydoc/*
+!docs_pydoc/index.html
 
 # My notes
 datasets_description.txt

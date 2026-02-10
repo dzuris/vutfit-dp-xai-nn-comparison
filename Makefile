@@ -32,7 +32,7 @@ sls:
 	$(INTERPRETER) -m src.sls.main --config $(CONFIG_FILE_SLS)
 
 test:
-	$(INTERPRETER) -m test_training_xai.py
+	$(INTERPRETER) -m test_training_xai
 
 test-sls:
 	$(INTERPRETER) -m src.sls.test_sls

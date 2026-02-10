@@ -88,7 +88,7 @@ make clean-doc  # Cleans generated documentation
 make clean  # Cleans logs, models and temporary files
 ```
 
-For setting configurations, check README for each script in their respective folder.
+For setting configurations, check README for each script in their respective folder. Moreover you may need to modify also `Makefile` file to set the paths to configuration files.
 
 ## PyLint
 
