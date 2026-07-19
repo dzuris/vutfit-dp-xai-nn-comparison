@@ -308,9 +308,9 @@ class GeneticProgrammingModel(BaseModel):
         toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=self.pset) # pylint: disable=no-member
 
         # Add limit tree height to avoid bloat
-        max_depth = 20
-        toolbox.decorate("mate", gp.staticLimit(key=len, max_value=max_depth))
-        toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=max_depth))
+        max_length = 100
+        toolbox.decorate("mate", gp.staticLimit(key=len, max_value=max_length))
+        toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=max_length))
 
         return toolbox
 
