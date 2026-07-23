@@ -308,7 +308,7 @@ class GeneticProgrammingModel(BaseModel):
         toolbox.register("mutate", gp.mutUniform, expr=toolbox.expr, pset=self.pset) # pylint: disable=no-member
 
         # Add limit tree height to avoid bloat
-        max_length = 100
+        max_length = 20
         toolbox.decorate("mate", gp.staticLimit(key=len, max_value=max_length))
         toolbox.decorate("mutate", gp.staticLimit(key=len, max_value=max_length))
 
@@ -387,7 +387,7 @@ class GeneticProgrammingModel(BaseModel):
             bloat_penalty (float): Penalty per node for large trees.
 
         Returns:
-            tuple[float]: (MSE + penalty,) for regression
+            tuple[float]: (MAE + penalty,) for regression
                 or (accuracy - penalty,) for classification.
             int: large penalty (999999.0 or 0.0) for NaN/Inf/errors.
         """
@@ -417,9 +417,11 @@ class GeneticProgrammingModel(BaseModel):
                 return (999999.0,) if is_regression else (0.00,)
 
             if is_regression:
+                # MAE - regression
                 error = np.mean(np.abs(preds - y.values))
                 return (error + penalty,)
 
+            # Accuracy - classification
             accuracy = accuracy_score(y, np.round(preds))
             return (accuracy - penalty,)
 
@@ -685,6 +687,15 @@ class GeneticProgrammingModel(BaseModel):
             max_display=10,
             show=False
         )
+        fig = plt.gcf()
+        colorbar_ax = fig.axes[-1]
+        feature_values = self.X_test.to_numpy()
+        low_value = float(np.nanmin(feature_values))
+        high_value = float(np.nanmax(feature_values))
+
+        colorbar_ax.set_ylabel("Feature value")
+        colorbar_ax.set_yticks([0, 1])
+        colorbar_ax.set_yticklabels([f"Low\n{low_value:.3f}", f"High\n{high_value:.3f}"])
         figure_file = f"{EXPLANATIONS_STORE_FOLDER}/gp_shap_figure_{self.target_column}.png"
         plt.title(f"SHAP Summary Plot — Target: {self.target_column}")
         plt.tight_layout()

@@ -431,6 +431,15 @@ class NeuralNetworkModel(BaseModel):
                 feature_names=self.X_test.columns.tolist(),
                 show=False
             )
+            fig = plt.gcf()
+            colorbar_ax = fig.axes[-1]
+            feature_values = self.X_test.to_numpy()
+            low_value = float(np.nanmin(feature_values))
+            high_value = float(np.nanmax(feature_values))
+
+            colorbar_ax.set_ylabel("Feature value")
+            colorbar_ax.set_yticks([0, 1])
+            colorbar_ax.set_yticklabels([f"Low\n{low_value:.3f}", f"High\n{high_value:.3f}"])
             plt.title(f"SHAP Summary Plot — Target: {self.target_column}\n")
             plt.tight_layout()
             plt.savefig(figure_file)
@@ -452,6 +461,15 @@ class NeuralNetworkModel(BaseModel):
                     feature_names=self.X_test.columns.tolist(),
                     show=False
                 )
+                fig = plt.gcf()
+                colorbar_ax = fig.axes[-1]
+                feature_values = self.X_test.to_numpy()
+                low_value = float(np.nanmin(feature_values))
+                high_value = float(np.nanmax(feature_values))
+
+                colorbar_ax.set_ylabel("Feature value")
+                colorbar_ax.set_yticks([0, 1])
+                colorbar_ax.set_yticklabels([f"Low\n{low_value:.3f}", f"High\n{high_value:.3f}"])
                 plt.title(f"SHAP Summary Plot - Class: {class_name}")
                 plt.tight_layout()
                 plt.savefig(figure_file)
