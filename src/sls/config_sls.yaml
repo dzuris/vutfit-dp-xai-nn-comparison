@@ -1,13 +1,6 @@
-# output_filename: "txtexpl.txt"
-output_folder: "tmp"
+# output_filename: "txtexpl.txt" # Optional: uncomment for setting custom output filename
+output_folder: "tmp" # Optional: uncomment to set custom subfolder to where save the output file
 folder_with_explanations: "tmp/exp"
 model_type: "nn" # Options: 'nn' and 'gp'
 target_column: "Y1"
 lime_instance_index: 0
-# shap:
-#   file: "tmp/nn_shap_values_Y1.npz"
-#   metadata_file: "tmp/nn_shap_metadata_Y1.json"
-# lime:
-#   file: "tmp/nn_lime_Y1_0.json"
-# summarization:
-#   file: "tmp/nn_summarize_Y1.json"

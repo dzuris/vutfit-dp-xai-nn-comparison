@@ -1,27 +1,26 @@
 data:
-  dataset_path: "datasets/ENB2012_data.xlsx"
-  type: regression # Options: regression, classification
+  dataset_path: "datasets/iris.csv"
+  type: classification # Options: regression, classification
   # If columns are not valid Python identifiers, the program coonverts them,
   # and here you need to specify valid column
   # names (e.g. "Concrete compressive strength(MPa, megapascals)" -> "Concrete_compressive_strength_MPa_megapascals").
   target_columns:
-    - Y1
-    - Y2
+    - variety
   missing_value_strategy: 'drop'  # Options: 'mean', 'median', 'mode', 'drop'
   test_size: 0.2
   random_state: 42
 
-selected_model: NeuralNetwork # Options: 'NeuralNetwork', 'GeneticProgramming'
-loss_function: mae # Options: regression: 'mae', 'mse', 'r2', classification: 'accuracy', 'log_loss'
+selected_model: GeneticProgramming # Options: 'NeuralNetwork', 'GeneticProgramming'
+loss_function: accuracy # Options: regression: 'mae', 'mse', 'r2', classification: 'accuracy', 'log_loss'
 
 xai:
   # model filename must match dataset in data config
-  model_filename_to_explain: "nn_model_Y1.keras"
-  model_target_column_name: "Y1"
+  model_filename_to_explain: "gp_model_variety.pickle"
+  model_target_column_name: "variety"
   # Method options for both nn and gp: 'shap', 'lime', 'visualize', 'summarize'
   method: 'shap'
   lime:
-    index_instance_to_explain: [0, 1, 2] # List of indices in data to explain
+    index_instance_to_explain: [0] # List of indices in data to explain
 
 logging:
   format: '%(message)s'
